@@ -3,6 +3,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronRight, Clock, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users } from "lucide-react";
 
 type Screen = "permission" | "home" | "verify" | "lounge" | "room" | "past" | "settings";
+type RoomInfo = { tag: string; c: string; place: string; time: string; n: number; past?: boolean };
+type Target = { kind: "lounge" } | { kind: "room"; room: RoomInfo };
+const nearbyRooms: RoomInfo[] = [
+  { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "2026.11.21 14:30", n: 8 },
+  { tag: "#학식", c: "cover-4", place: "학생회관 1층", time: "2026.11.21 12:05", n: 5 },
+  { tag: "#해커톤", c: "cover-3", place: "상명대 미래백년관", time: "2026.11.21 10:40", n: 14 },
+];
 type Msg = { id: number; nick: string; emoji: string; text: string; me?: boolean; bot?: boolean };
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -22,6 +29,17 @@ const roomSeed: Msg[] = [
   { id: 2, nick: "졸린 판다", emoji: "🐼", text: "뮤비 장소 어딘지 아시는 분?" },
   { id: 3, nick: "새벽 코더", emoji: "🦉", text: "코딩하면서 듣기 딱 좋음" },
 ];
+const roomMsgs: Record<string, Msg[]> = {
+  "#학식": [
+    { id: 1, nick: "달리는 토끼", emoji: "🐰", text: "오늘 돈가스 줄 엄청 길어요" },
+    { id: 2, nick: "민트 고양이", emoji: "🐱", text: "2층 분식 쪽은 한산해요!" },
+  ],
+  "#해커톤": [
+    { id: 1, nick: "새벽 코더", emoji: "🦉", text: "팀 아직 안 구하신 분?" },
+    { id: 2, nick: "졸린 판다", emoji: "🐼", text: "프론트 하나 구해요 🙋" },
+    { id: 3, nick: "민트 고양이", emoji: "🐱", text: "발표 몇 시부터예요?" },
+  ],
+};
 const pastRooms = [
   { tag: "#뉴진스", place: "상명대 미래백년관", time: "오늘 14:30", n: 8, c: "cover-1" },
   { tag: "#해커톤", place: "상명대 미래백년관", time: "어제 22:10", n: 14, c: "cover-3" },
@@ -33,11 +51,18 @@ const pastRooms = [
 export function RippleApp() {
   const [screen, setScreen] = useState<Screen>("permission");
   const [verified, setVerified] = useState(false);
+  const [room, setRoom] = useState<RoomInfo>(nearbyRooms[0]!);
+  const [roomBack, setRoomBack] = useState<Screen>("lounge");
+  const [pending, setPending] = useState<Target>({ kind: "lounge" });
+  const openTarget = (t: Target) => {
+    if (t.kind === "room") { setRoom(t.room); setRoomBack("home"); setScreen("room"); } else setScreen("lounge");
+  };
+  const request = (t: Target) => { if (verified) openTarget(t); else { setPending(t); setScreen("verify"); } };
   const tab = screen === "past" ? "past" : screen === "settings" ? "settings" : screen === "home" ? "home" : null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-desk sm:p-6">
-      <div className="relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[844px] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
+      <div className="relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
         <div className="pointer-events-none absolute inset-0 glow-purple" />
         <div className="relative z-10 flex h-11 items-center justify-between px-8 text-xs font-semibold">
           <span>13:43</span><span>●●● 5G</span>
@@ -52,11 +77,11 @@ export function RippleApp() {
             className="absolute inset-x-0 bottom-0 top-11 z-10 flex flex-col"
           >
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
-            {screen === "home" && <HomeScreen onTalk={() => setScreen(verified ? "lounge" : "verify")} />}
-            {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); setScreen("lounge"); }} />}
-            {screen === "lounge" && <Lounge onBack={() => setScreen("home")} onRoom={() => setScreen("room")} />}
-            {screen === "room" && <Room onBack={() => setScreen("lounge")} />}
-            {screen === "past" && <Past />}
+            {screen === "home" && <HomeScreen onOpen={request} />}
+            {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
+            {screen === "lounge" && <Lounge onBack={() => setScreen("home")} onRoom={() => { setRoom(nearbyRooms[0]!); setRoomBack("lounge"); setScreen("room"); }} />}
+            {screen === "room" && <Room key={room.tag} room={room} onBack={() => setScreen(roomBack)} />}
+            {screen === "past" && <Past onOpen={(rm) => { setRoom({ ...rm, past: true }); setRoomBack("past"); setScreen("room"); }} />}
             {screen === "settings" && <Settings verified={verified} onVerify={() => setScreen("verify")} />}
           </motion.div>
         </AnimatePresence>
@@ -98,8 +123,8 @@ function Ripples({ size, count = 3, period = 2, className = "" }: { size: number
 
 function Permission({ onAllow }: { onAllow: () => void }) {
   return (
-    <div className="flex flex-1 flex-col px-7 pb-10">
-      <div className="relative mt-10 h-64">
+    <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-10">
+      <div className="relative mt-6 h-56 shrink-0">
         <Ripples size={240} count={4} period={1.2} />
         <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-lime" />
       </div>
@@ -126,19 +151,20 @@ function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; o
   );
 }
 
-function HomeScreen({ onTalk }: { onTalk: () => void }) {
+function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
+  const [sheet, setSheet] = useState(false);
   const count = 12;
   const dots = [[-110, -40], [95, -95], [120, 60], [-70, 110], [30, 140], [-130, 50], [60, -150], [-40, -140], [140, -20], [-100, -110], [10, -80], [85, 115]];
-  const chips = [{ t: "#뉴진스", x: -95, y: -120, c: "bg-pop-pink" }, { t: "#학식", x: 90, y: 30, c: "bg-pop-orange" }, { t: "#해커톤", x: -70, y: 150, c: "bg-pop-cyan" }];
+  const chips = [{ x: -95, y: -120, c: "bg-pop-pink" }, { x: 90, y: 30, c: "bg-pop-orange" }, { x: -70, y: 150, c: "bg-pop-cyan" }].map((p, i) => ({ ...p, room: nearbyRooms[i]! }));
   return (
-    <div className="flex flex-1 flex-col pb-28">
+    <div className="relative flex min-h-0 flex-1 flex-col pb-28">
       <div className="flex items-center justify-between px-6 pt-2">
         <div>
           <p className="text-xs font-semibold text-muted-foreground"><MapPin className="mr-1 inline h-3 w-3" />상명대 미래백년관 근처</p>
           <h1 className="text-[28px] font-extrabold tracking-tight">Ripple</h1>
         </div>
       </div>
-      <div className="relative flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {[220].map((s) => (
           <div key={s} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border" style={{ width: s, height: s }} />
         ))}
@@ -150,9 +176,15 @@ function HomeScreen({ onTalk }: { onTalk: () => void }) {
             transition={{ duration: 3 + (i % 3), repeat: Infinity, delay: i * 0.2 }} />
         ))}
         {chips.map((c, i) => (
-          <motion.span key={c.t} className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-extrabold text-pop-ink ${c.c}`}
-            style={{ marginLeft: c.x, marginTop: c.y }}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.15 }}>{c.t}</motion.span>
+          <div key={c.room.tag} className="absolute left-1/2 top-1/2 z-10" style={{ marginLeft: c.x, marginTop: c.y }}>
+            <motion.button onClick={() => onOpen({ kind: "room", room: c.room })} whileTap={{ scale: 0.9 }}
+              className={`-translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold text-pop-ink ${c.c}`}
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: [1, 1.06, 1], x: [0, 6, -4, 0], y: [0, -8, 4, 0], rotate: [0, -3, 2, 0] }}
+              transition={{ opacity: { delay: 0.3 + i * 0.15 }, default: { duration: 5 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.6 } }}>
+              {c.room.tag} <span className="opacity-60">{c.room.n}</span>
+            </motion.button>
+          </div>
         ))}
         <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
           <span className="mb-3 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">
@@ -169,8 +201,25 @@ function HomeScreen({ onTalk }: { onTalk: () => void }) {
           </div>
           <span className="text-xs font-semibold">2명 더 모이면 라운지가 열려요</span>
         </div>
-        <PrimaryButton onClick={onTalk}>지금 여기 사람들과 이야기하기</PrimaryButton>
+        <PrimaryButton onClick={() => setSheet(true)}>지금 여기 사람들과 이야기하기</PrimaryButton>
       </div>
+      <Sheet open={sheet} onClose={() => setSheet(false)}>
+        <p className="px-1 text-xl font-extrabold">지금 여기서 열린 방</p>
+        <p className="mb-4 mt-1 px-1 text-xs text-muted-foreground">바로 들어가서 이야기할 수 있어요</p>
+        <button onClick={() => onOpen({ kind: "lounge" })} className="flex w-full items-center gap-3 rounded-2xl p-2 text-left hover:bg-secondary">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl">💬</div>
+          <div className="flex-1"><p className="font-extrabold">미래백년관 라운지</p><p className="text-xs text-muted-foreground">ripplers 12명 · 전체 대화</p></div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </button>
+        {nearbyRooms.map((rm) => (
+          <button key={rm.tag} onClick={() => onOpen({ kind: "room", room: rm })} className="mt-1 flex w-full items-center gap-3 rounded-2xl p-2 text-left hover:bg-secondary">
+            <div className={`${rm.c} h-14 w-14 rounded-2xl`} />
+            <div className="flex-1"><p className="font-extrabold">{rm.tag}</p><p className="text-xs text-muted-foreground">{rm.place} · {rm.n}명 대화 중</p></div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+        ))}
+        <div className="h-20" />
+      </Sheet>
     </div>
   );
 }
@@ -286,7 +335,7 @@ function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) 
     </motion.div>
   );
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <Header title="미래백년관 라운지 · ripplers 12명" sub="메시지를 길게 누르면 신고·차단할 수 있어요" onBack={onBack} />
       <ChatList msgs={chat.msgs} onLong={setTarget} bot={bot} />
       <InputBar {...chat} />
@@ -304,17 +353,17 @@ function Cover({ tag, c = "cover-1", big }: { tag: string; c?: string; big?: boo
   );
 }
 
-function Room({ onBack }: { onBack: () => void }) {
-  const chat = useChat(roomSeed);
+function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
+  const chat = useChat(roomMsgs[room.tag] ?? roomSeed);
   const [target, setTarget] = useState<Msg | null>(null);
   const [share, setShare] = useState(false);
   return (
-    <div className="relative flex flex-1 flex-col">
-      <Header title="#뉴진스" onBack={onBack} right={<button onClick={() => setShare(true)} className="glass flex h-10 w-10 items-center justify-center rounded-full"><Share2 className="h-5 w-5" /></button>} />
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <Header title={room.tag} onBack={onBack} right={<button onClick={() => setShare(true)} className="glass flex h-10 w-10 items-center justify-center rounded-full"><Share2 className="h-5 w-5" /></button>} />
       <div className="px-4">
-        <motion.div layoutId="cover" className="h-44 overflow-hidden rounded-3xl shadow-2xl"><Cover tag="#뉴진스" big /></motion.div>
-        <p className="mt-3 text-xs font-medium text-muted-foreground">2026.11.21 14:30 · 상명대 미래백년관 · 8명</p>
-        <p className="mt-2 inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">이 방은 장소를 떠나도 유지돼요</p>
+        <motion.div layoutId="cover" className="h-36 overflow-hidden rounded-3xl shadow-2xl"><Cover tag={room.tag} c={room.c} big /></motion.div>
+        <p className="mt-3 text-xs font-medium text-muted-foreground">{room.time} · {room.place} · {room.n}명</p>
+        <p className="mt-2 inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">{room.past ? "지난 방이에요 · 대화를 이어갈 수 있어요" : "이 방은 장소를 떠나도 유지돼요"}</p>
       </div>
       <ChatList msgs={chat.msgs} onLong={setTarget} />
       <InputBar {...chat} />
@@ -324,12 +373,12 @@ function Room({ onBack }: { onBack: () => void }) {
           <motion.div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-background/90 p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <button onClick={() => setShare(false)} className="glass absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full"><X className="h-5 w-5" /></button>
             <motion.div initial={{ scale: 0.85, y: 30 }} animate={{ scale: 1, y: 0 }} transition={{ ease, duration: 0.45 }}
-              className="cover-1 relative aspect-[9/16] w-56 overflow-hidden rounded-3xl p-5 shadow-lime">
+              className={`${room.c} relative aspect-[9/16] w-56 overflow-hidden rounded-3xl p-5 shadow-lime`}>
               <div className="absolute inset-0 ripple-pattern" />
               <div className="relative flex h-full flex-col text-primary-foreground">
                 <p className="text-xs font-black">💧 Ripple</p>
-                <p className="mt-auto text-4xl font-black">#뉴진스</p>
-                <p className="mt-2 text-[11px] font-semibold">2026.11.21 14:30<br />상명대 미래백년관 · 8명</p>
+                <p className="mt-auto text-4xl font-black">{room.tag}</p>
+                <p className="mt-2 text-[11px] font-semibold">{room.time}<br />{room.place} · {room.n}명</p>
               </div>
             </motion.div>
             <p className="mt-6 text-sm text-muted-foreground">스토리 크기 카드 미리보기</p>
@@ -341,7 +390,7 @@ function Room({ onBack }: { onBack: () => void }) {
   );
 }
 
-function Past() {
+function Past({ onOpen }: { onOpen: (r: RoomInfo) => void }) {
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
       <h1 className="mt-4 text-[30px] font-extrabold tracking-tight">이곳의 지난 방</h1>
@@ -349,7 +398,7 @@ function Past() {
       <div className="mt-6 space-y-3">
         {pastRooms.map((r, i) => (
           <motion.button key={r.tag} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06, ease }}
-            whileTap={{ scale: 0.98 }} className="flex w-full items-center gap-4 rounded-3xl bg-card p-3 text-left">
+            onClick={() => onOpen(r)} whileTap={{ scale: 0.98 }} className="flex w-full items-center gap-4 rounded-3xl bg-card p-3 text-left">
             <Cover tag="" c={r.c} />
             <div className="min-w-0 flex-1">
               <p className="text-[17px] font-extrabold">{r.tag}</p>
@@ -370,9 +419,9 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
   const [code, setCode] = useState("");
   const fmt = (v: string) => { const d = v.replace(/\D/g, "").slice(0, 11); return d.length > 7 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : d.length > 3 ? `${d.slice(0, 3)}-${d.slice(3)}` : d; };
   return (
-    <div className="flex flex-1 flex-col pb-10">
+    <div className="flex min-h-0 flex-1 flex-col pb-8">
       <Header title="" onBack={onBack} />
-      <div className="flex flex-1 flex-col px-6">
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-6">
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">휴대폰 번호로<br />한 번만 인증할게요</h1>
         <p className="mt-2 text-sm text-muted-foreground">상대에게는 닉네임만 보여요</p>
         <div className="mt-8 flex gap-2">
@@ -393,7 +442,7 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
             </motion.div>
           )}
         </AnimatePresence>
-        <div className="mt-auto"><PrimaryButton disabled={code.length < 6} onClick={onDone}>인증하고 시작하기</PrimaryButton></div>
+        <div className="mt-auto pt-6"><PrimaryButton disabled={code.length < 6} onClick={onDone}>인증하고 시작하기</PrimaryButton></div>
       </div>
     </div>
   );
