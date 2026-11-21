@@ -13,8 +13,6 @@ const nearbyRooms: RoomInfo[] = [
 type Msg = { id: number; nick: string; emoji: string; text: string; me?: boolean; bot?: boolean };
 
 const ease = [0.22, 1, 0.36, 1] as const;
-const POP = ["bg-pop-pink", "bg-pop-cyan", "bg-pop-orange", "bg-pop-violet", "bg-primary"];
-const nickColor = (n: string) => POP[[...n].reduce((a, ch) => a + ch.charCodeAt(0), 0) % POP.length];
 
 const loungeSeed: Msg[] = [
   { id: 1, nick: "졸린 판다", emoji: "🐼", text: "여기 3층 콘센트 자리 아직 남았나요?" },
@@ -98,7 +96,7 @@ function TabBar({ tab, go }: { tab: string; go: (s: Screen) => void }) {
     { k: "settings", label: "내 정보", Icon: User },
   ] as const;
   return (
-    <nav className="glass absolute inset-x-0 bottom-0 z-20 flex justify-around rounded-t-3xl pb-6 pt-3">
+    <nav className="absolute inset-x-0 bottom-0 z-20 flex justify-around border-t border-border bg-background pb-6 pt-3">
       {items.map(({ k, label, Icon }) => (
         <button key={k} onClick={() => go(k)} className={`relative flex flex-col items-center gap-1 px-6 text-[11px] font-semibold transition-colors ${tab === k ? "text-primary" : "text-muted-foreground"}`}>
           <Icon className="h-5 w-5" />{label}
@@ -113,7 +111,7 @@ function Ripples({ size, count = 3, period = 2, className = "" }: { size: number
   return (
     <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${className}`} style={{ width: size, height: size }}>
       {Array.from({ length: count }).map((_, i) => (
-        <motion.span key={i} className="absolute inset-0 rounded-full border border-primary"
+        <motion.span key={i} className="absolute inset-0 rounded-full border-2 border-primary/50 bg-primary/5"
           initial={{ scale: 0.1, opacity: 0.8 }} animate={{ scale: 1, opacity: 0 }}
           transition={{ duration: period * count / 1.5, repeat: Infinity, delay: i * period / 1.5 * (count > 2 ? 1 : 1), ease: "easeOut" }} />
       ))}
@@ -126,7 +124,7 @@ function Permission({ onAllow }: { onAllow: () => void }) {
     <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-10">
       <div className="relative mt-6 h-56 shrink-0">
         <Ripples size={240} count={4} period={1.2} />
-        <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-lime" />
+        <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary" />
       </div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 text-[30px] font-extrabold leading-tight tracking-tight">
         지금 여기 있는<br />사람들과 이어지려면
@@ -145,7 +143,7 @@ function Permission({ onAllow }: { onAllow: () => void }) {
 function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
     <motion.button whileTap={{ scale: 0.97 }} onClick={onClick} disabled={disabled}
-      className="h-16 w-full rounded-full bg-primary text-[17px] font-extrabold text-primary-foreground shadow-lime transition-opacity disabled:opacity-30 disabled:shadow-none">
+      className="h-14 w-full rounded-2xl bg-primary text-[17px] font-bold text-primary-foreground transition-opacity disabled:bg-muted disabled:text-muted-foreground">
       {children}
     </motion.button>
   );
@@ -155,7 +153,7 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
   const [sheet, setSheet] = useState(false);
   const count = 12;
   const dots = [[-110, -40], [95, -95], [120, 60], [-70, 110], [30, 140], [-130, 50], [60, -150], [-40, -140], [140, -20], [-100, -110], [10, -80], [85, 115]];
-  const chips = [{ x: -95, y: -120, c: "bg-pop-pink" }, { x: 90, y: 30, c: "bg-pop-orange" }, { x: -70, y: 150, c: "bg-pop-cyan" }].map((p, i) => ({ ...p, room: nearbyRooms[i]! }));
+  const chips = [{ x: -95, y: -120 }, { x: 90, y: 30 }, { x: -70, y: 150 }].map((p, i) => ({ ...p, room: nearbyRooms[i]! }));
   return (
     <div className="relative flex min-h-0 flex-1 flex-col pb-28">
       <div className="flex items-center justify-between px-6 pt-2">
@@ -165,12 +163,12 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
         </div>
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        {[220].map((s) => (
-          <div key={s} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border" style={{ width: s, height: s }} />
+        {[160, 260].map((s) => (
+          <div key={s} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-primary/20" style={{ width: s, height: s }} />
         ))}
-        <Ripples size={340} count={2} period={2} className="opacity-40" />
+        <Ripples size={360} count={3} period={2} />
         {dots.slice(0, count).map(([x, y], i) => (
-          <motion.span key={i} className={`absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full ${POP[i % POP.length]}`}
+          <motion.span key={i} className={`absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full bg-primary/50`}
             style={{ x: (x ?? 0) - 5, y: (y ?? 0) - 5 }}
             animate={{ opacity: [0.35, 0.8, 0.35] }}
             transition={{ duration: 3 + (i % 3), repeat: Infinity, delay: i * 0.2 }} />
@@ -178,11 +176,11 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
         {chips.map((c, i) => (
           <div key={c.room.tag} className="absolute left-1/2 top-1/2 z-10" style={{ marginLeft: c.x, marginTop: c.y }}>
             <motion.button onClick={() => onOpen({ kind: "room", room: c.room })} whileTap={{ scale: 0.9 }}
-              className={`-translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold text-pop-ink ${c.c}`}
+              className={`-translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground shadow-sm`}
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: [1, 1.06, 1], x: [0, 6, -4, 0], y: [0, -8, 4, 0], rotate: [0, -3, 2, 0] }}
               transition={{ opacity: { delay: 0.3 + i * 0.15 }, default: { duration: 5 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.6 } }}>
-              {c.room.tag} <span className="opacity-60">{c.room.n}</span>
+              {c.room.tag} <span className="text-primary">{c.room.n}</span>
             </motion.button>
           </div>
         ))}
@@ -190,12 +188,12 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
           <span className="mb-3 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">
             주변 ripplers {count >= 3 ? `${count}명` : "몇 명"}
           </span>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-4xl shadow-lime">🐻</div>
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-4xl">🐻</div>
           <span className="mt-2 text-sm font-bold">나</span>
         </div>
       </div>
       <div className="space-y-3 px-5">
-        <div className="glass flex items-center gap-3 rounded-full px-4 py-2.5">
+        <div className="flex items-center gap-3 rounded-2xl bg-primary-soft px-4 py-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: "70%" }} transition={{ duration: 1.2, ease }} />
           </div>
@@ -204,17 +202,20 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
         <PrimaryButton onClick={() => setSheet(true)}>지금 여기 사람들과 이야기하기</PrimaryButton>
       </div>
       <Sheet open={sheet} onClose={() => setSheet(false)}>
-        <p className="px-1 text-xl font-extrabold">지금 여기서 열린 방</p>
-        <p className="mb-4 mt-1 px-1 text-xs text-muted-foreground">바로 들어가서 이야기할 수 있어요</p>
-        <button onClick={() => onOpen({ kind: "lounge" })} className="flex w-full items-center gap-3 rounded-2xl p-2 text-left hover:bg-secondary">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl">💬</div>
-          <div className="flex-1"><p className="font-extrabold">미래백년관 라운지</p><p className="text-xs text-muted-foreground">ripplers 12명 · 전체 대화</p></div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </button>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => onOpen({ kind: "lounge" })}
+          className="cover-2 relative w-full overflow-hidden rounded-3xl p-6 text-left text-primary-foreground">
+          <div className="absolute inset-0 ripple-pattern" />
+          <div className="relative">
+            <p className="text-xs font-semibold opacity-80">지금 이곳 · ripplers 12명</p>
+            <p className="mt-1 text-[26px] font-extrabold leading-tight">미래백년관<br />리플 참여하기</p>
+            <span className="mt-5 inline-flex items-center gap-1 rounded-full bg-background px-4 py-2 text-sm font-bold text-primary">바로 들어가기 <ChevronRight className="h-4 w-4" /></span>
+          </div>
+        </motion.button>
+        <p className="mb-1 mt-6 px-1 text-sm font-bold text-muted-foreground">주변 토픽방</p>
         {nearbyRooms.map((rm) => (
           <button key={rm.tag} onClick={() => onOpen({ kind: "room", room: rm })} className="mt-1 flex w-full items-center gap-3 rounded-2xl p-2 text-left hover:bg-secondary">
-            <div className={`${rm.c} h-14 w-14 rounded-2xl`} />
-            <div className="flex-1"><p className="font-extrabold">{rm.tag}</p><p className="text-xs text-muted-foreground">{rm.place} · {rm.n}명 대화 중</p></div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-lg font-extrabold text-primary">#</div>
+            <div className="flex-1"><p className="font-bold">{rm.tag}</p><p className="text-xs text-muted-foreground">{rm.place} · {rm.n}명 대화 중</p></div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </button>
         ))}
@@ -227,7 +228,7 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
 function Header({ title, sub, onBack, right }: { title: string; sub?: string; onBack?: () => void; right?: ReactNode }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      {onBack && <button onClick={onBack} className="glass flex h-10 w-10 items-center justify-center rounded-full"><ArrowLeft className="h-5 w-5" /></button>}
+      {onBack && <button onClick={onBack} className="bg-secondary flex h-10 w-10 items-center justify-center rounded-full"><ArrowLeft className="h-5 w-5" /></button>}
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[17px] font-extrabold">{title}</h1>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
@@ -259,7 +260,7 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
       {msgs.map((m, i) => m.bot ? <div key="bot">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
           className={`flex gap-2 ${m.me ? "justify-end" : ""}`}>
-          {!m.me && <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${nickColor(m.nick)}`}>{m.emoji}</div>}
+          {!m.me && <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-lg`}>{m.emoji}</div>}
           <div className={`max-w-[72%] ${m.me ? "items-end" : ""} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
@@ -278,7 +279,7 @@ function InputBar({ text, setText, send }: { text: string; setText: (s: string) 
   return (
     <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-center gap-2 px-4 pb-8 pt-2">
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder="메시지 보내기"
-        className="glass h-12 min-w-0 flex-1 rounded-full px-5 text-[15px] outline-none placeholder:text-muted-foreground focus:border-primary" />
+        className="bg-secondary h-12 min-w-0 flex-1 rounded-full border border-transparent px-5 text-[15px] outline-none placeholder:text-muted-foreground focus:border-primary" />
       <motion.button whileTap={{ scale: 0.9 }} type="submit" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <Send className="h-5 w-5" />
       </motion.button>
@@ -328,15 +329,15 @@ function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) 
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
       className="relative my-2 overflow-hidden rounded-3xl bg-card p-5">
             <div className="relative">
-        <p className="text-xs font-extrabold text-pop-pink">💧 RIPPLE</p>
+        <p className="text-xs font-bold text-primary">💧 RIPPLE</p>
         <p className="mt-1 text-[17px] font-extrabold">3명이 '뉴진스' 얘기를 하고 있어요</p>
-        <motion.button whileTap={{ scale: 0.96 }} onClick={onRoom} className="mt-4 rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground shadow-lime">#뉴진스방 입장하기</motion.button>
+        <motion.button whileTap={{ scale: 0.96 }} onClick={onRoom} className="mt-4 rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground">#뉴진스방 입장하기</motion.button>
       </div>
     </motion.div>
   );
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <Header title="미래백년관 라운지 · ripplers 12명" sub="메시지를 길게 누르면 신고·차단할 수 있어요" onBack={onBack} />
+      <Header title="미래백년관 리플 · ripplers 12명" sub="메시지를 길게 누르면 신고·차단할 수 있어요" onBack={onBack} />
       <ChatList msgs={chat.msgs} onLong={setTarget} bot={bot} />
       <InputBar {...chat} />
       <ModerationSheet target={target} onClose={() => setTarget(null)} />
@@ -359,11 +360,11 @@ function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
   const [share, setShare] = useState(false);
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <Header title={room.tag} onBack={onBack} right={<button onClick={() => setShare(true)} className="glass flex h-10 w-10 items-center justify-center rounded-full"><Share2 className="h-5 w-5" /></button>} />
+      <Header title={room.tag} onBack={onBack} right={<button onClick={() => setShare(true)} className="bg-secondary flex h-10 w-10 items-center justify-center rounded-full"><Share2 className="h-5 w-5" /></button>} />
       <div className="px-4">
         <motion.div layoutId="cover" className="h-36 overflow-hidden rounded-3xl shadow-2xl"><Cover tag={room.tag} c={room.c} big /></motion.div>
         <p className="mt-3 text-xs font-medium text-muted-foreground">{room.time} · {room.place} · {room.n}명</p>
-        <p className="mt-2 inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">{room.past ? "지난 방이에요 · 대화를 이어갈 수 있어요" : "이 방은 장소를 떠나도 유지돼요"}</p>
+        <p className="mt-2 inline-block rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary">{room.past ? "지난 방이에요 · 대화를 이어갈 수 있어요" : "이 방은 장소를 떠나도 유지돼요"}</p>
       </div>
       <ChatList msgs={chat.msgs} onLong={setTarget} />
       <InputBar {...chat} />
@@ -371,9 +372,9 @@ function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
       <AnimatePresence>
         {share && (
           <motion.div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-background/90 p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button onClick={() => setShare(false)} className="glass absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full"><X className="h-5 w-5" /></button>
+            <button onClick={() => setShare(false)} className="bg-secondary absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full"><X className="h-5 w-5" /></button>
             <motion.div initial={{ scale: 0.85, y: 30 }} animate={{ scale: 1, y: 0 }} transition={{ ease, duration: 0.45 }}
-              className={`${room.c} relative aspect-[9/16] w-56 overflow-hidden rounded-3xl p-5 shadow-lime`}>
+              className={`${room.c} relative aspect-[9/16] w-56 overflow-hidden rounded-3xl p-5`}>
               <div className="absolute inset-0 ripple-pattern" />
               <div className="relative flex h-full flex-col text-primary-foreground">
                 <p className="text-xs font-black">💧 Ripple</p>
@@ -426,7 +427,7 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
         <p className="mt-2 text-sm text-muted-foreground">상대에게는 닉네임만 보여요</p>
         <div className="mt-8 flex gap-2">
           <input inputMode="numeric" value={phone} onChange={(e) => setPhone(fmt(e.target.value))} placeholder="010-0000-0000"
-            className="glass h-14 flex-1 rounded-2xl px-5 text-lg font-semibold outline-none focus:border-primary" />
+            className="bg-secondary h-14 flex-1 rounded-2xl border border-transparent px-5 text-lg font-semibold outline-none focus:border-primary" />
           <button disabled={phone.length < 12} onClick={() => setSent(true)} className="rounded-2xl bg-secondary px-4 text-sm font-bold disabled:opacity-40">{sent ? "재전송" : "인증번호"}</button>
         </div>
         <AnimatePresence>
@@ -435,7 +436,7 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
               <p className="mb-2 text-xs font-semibold text-muted-foreground">인증번호 6자리 (아무 숫자나 입력)</p>
               <div className="relative flex justify-between">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-2xl font-bold ${code.length === i ? "border-primary" : "border-border"} bg-glass`}>{code[i] ?? ""}</div>
+                  <div key={i} className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-2xl font-bold ${code.length === i ? "border-primary" : "border-border"} bg-secondary`}>{code[i] ?? ""}</div>
                 ))}
                 <input autoFocus inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} className="absolute inset-0 opacity-0" aria-label="인증번호" />
               </div>
@@ -454,7 +455,7 @@ function Settings({ verified, onVerify }: { verified: boolean; onVerify: () => v
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
       <div className="mt-4 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-3xl shadow-lime">🐻</div>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-3xl">🐻</div>
         <div>
           <p className="text-xs text-muted-foreground">닉네임</p>
           <p className="text-2xl font-extrabold">느긋한 곰</p>
