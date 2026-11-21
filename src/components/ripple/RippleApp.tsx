@@ -4,6 +4,7 @@ import { createPortal, flushSync } from "react-dom";
 import { ArrowLeft, ChevronRight, Clock, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { chatSizes, defaultAppearance, type ChatSize, type ThemeMode } from "./appearance";
 import { topicImages } from "./topic-images";
 import { RippleLogo } from "./RippleLogo";
@@ -18,7 +19,7 @@ const CharacterContext = createContext({ avatar: defaultAvatar, setAvatar: (_val
 const AppearanceContext = createContext({
   theme: defaultAppearance.theme,
   chatSize: defaultAppearance.chatSize,
-  setTheme: (_value: ThemeMode) => {},
+  setTheme: (_value: ThemeMode, _animate = true) => {},
   setChatSize: (_value: ChatSize) => {},
 });
 
@@ -75,9 +76,9 @@ export function RippleApp() {
   const origin = useRef({ x: 195, y: 420 });
   const navigating = useRef(false);
   const changingTheme = useRef(false);
-  const setTheme = (next: ThemeMode) => {
+  const setTheme = (next: ThemeMode, animate = true) => {
     if (next === theme || changingTheme.current) return;
-    if (!document.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setRawTheme(next); return; }
+    if (!animate || !document.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setRawTheme(next); return; }
     const box = shell.current?.getBoundingClientRect();
     const x = (box?.left ?? 0) + origin.current.x;
     const y = (box?.top ?? 0) + origin.current.y;
@@ -268,9 +269,9 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
     <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
       {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
-          className={`chat-row relative flex min-h-[92px] items-start ${m.me ? "justify-end" : ""}`}>
-          <div className={`chat-character pointer-events-none absolute top-0 h-[92px] w-[84px] ${m.me ? "-right-8" : "-left-8"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
-          <div className={`min-w-0 max-w-[calc(100%-92px)] ${m.me ? "ml-5 mr-[72px] items-end" : "ml-[72px] mr-5"} flex flex-col`}>
+          className={`chat-row relative flex min-h-16 items-start ${m.me ? "justify-end" : ""}`}>
+          <div className={`chat-character pointer-events-none absolute top-1 h-[60px] w-[54px] ${m.me ? "-right-[22px]" : "-left-[22px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
+          <div className={`min-w-0 max-w-[calc(100%-72px)] ${m.me ? "ml-5 mr-[52px] items-end" : "ml-[52px] mr-5"} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
               className={`chat-message select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>
@@ -463,12 +464,12 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
   );
 }
 
-function AppearanceControls() {
+function AppearanceControls({ chat = false }: { chat?: boolean }) {
   const { theme, chatSize, setTheme, setChatSize } = useContext(AppearanceContext);
   return (
     <section className="mt-6">
       <p className="mb-3 text-xs font-bold text-muted-foreground">화면과 대화</p>
-      <div className="flex items-center justify-between py-2"><span className="text-sm font-semibold">화면 모드</span><div className="flex gap-1 rounded-xl bg-secondary p-1">{(["light", "dark"] as const).map((mode) => <Button variant="ghost" key={mode} aria-pressed={theme === mode} onClick={() => setTheme(mode)} className={`h-9 rounded-lg px-3 text-xs ${theme === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>{mode === "light" ? <Sun /> : <Moon />}{mode === "light" ? "라이트" : "다크"}</Button>)}</div></div>
+      <div className="flex items-center justify-between py-2"><span className="text-sm font-semibold">화면 모드</span>{chat ? <div className="flex items-center gap-3"><Sun className="h-4 w-4 text-muted-foreground" /><Switch aria-label="다크 모드" checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light", false)} /><Moon className="h-4 w-4 text-muted-foreground" /></div> : <div className="flex gap-1 rounded-xl bg-secondary p-1">{(["light", "dark"] as const).map((mode) => <Button variant="ghost" key={mode} aria-pressed={theme === mode} onClick={() => setTheme(mode)} className={`h-9 rounded-lg px-3 text-xs ${theme === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>{mode === "light" ? <Sun /> : <Moon />}{mode === "light" ? "라이트" : "다크"}</Button>)}</div>}</div>
       <div className="mt-4 flex items-center justify-between"><label className="text-sm font-semibold" htmlFor="chat-font-size">대화 글자 크기</label><span className="text-xs font-semibold text-primary">{chatSizes[chatSize].label}</span></div>
       <input id="chat-font-size" aria-label="대화 글자 크기" className="font-slider mt-4 w-full accent-primary" type="range" min={0} max={3} step={1} value={Object.keys(chatSizes).indexOf(chatSize)} onChange={(e) => { const next = (Object.keys(chatSizes) as ChatSize[])[Number(e.target.value)]; if (next) setChatSize(next); }} />
       <div className="mt-1 flex justify-between text-[10px] font-medium text-muted-foreground"><span>작게</span><span>기본</span><span>크게</span><span>더 크게</span></div>
@@ -479,7 +480,7 @@ function AppearanceControls() {
 
 function ChatSettingsButton() {
   const [open, setOpen] = useState(false);
-  return <><Button variant="secondary" size="icon" aria-label="대화 화면 설정" onClick={() => setOpen(true)} className="h-10 w-10 rounded-full"><Settings2 /></Button><Sheet open={open} onClose={() => setOpen(false)}><div className="flex items-center justify-between"><h2 className="text-lg font-extrabold">내게 편한 대화</h2><Button variant="ghost" size="icon" aria-label="설정 닫기" onClick={() => setOpen(false)}><X /></Button></div><AppearanceControls /><Button className="mt-5 h-12 w-full rounded-xl" onClick={() => setOpen(false)}><Check />완료</Button></Sheet></>;
+  return <><Button variant="secondary" size="icon" aria-label="대화 화면 설정" onClick={() => setOpen(true)} className="h-10 w-10 rounded-full"><Settings2 /></Button><Sheet open={open} onClose={() => setOpen(false)}><div className="flex items-center justify-between"><h2 className="text-lg font-extrabold">내게 편한 대화</h2><Button variant="ghost" size="icon" aria-label="설정 닫기" onClick={() => setOpen(false)}><X /></Button></div><AppearanceControls chat /><Button className="mt-5 h-12 w-full rounded-xl" onClick={() => setOpen(false)}><Check />완료</Button></Sheet></>;
 }
 
 function Settings({ verified, onVerify }: { verified: boolean; onVerify: () => void }) {

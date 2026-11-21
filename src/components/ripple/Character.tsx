@@ -2,11 +2,12 @@ import { chatPeekDegrees, type Avatar } from "./avatar";
 
 export function Character({ avatar, className = "", label = "내 캐릭터", peek }: { avatar: Avatar; className?: string; label?: string; peek?: "left" | "right" }) {
   const body = avatar.body === "slim" ? "M39 91Q60 81 81 91L88 128H32Z" : avatar.body === "broad" ? "M24 97Q60 78 96 97L106 128H14Z" : "M30 97Q60 80 90 97Q103 109 98 128H22Q17 109 30 97Z";
+  const peekingBody = avatar.body === "slim" ? "M39 91Q60 81 81 91Q88 111 54 136L-40 210H-100L16 125Q28 105 39 91Z" : avatar.body === "broad" ? "M24 97Q60 78 96 97Q108 113 54 136L-40 210H-110L0 132Q12 108 24 97Z" : "M30 97Q60 80 90 97Q103 113 54 136L-40 210H-100L6 130Q17 109 30 97Z";
   return <svg viewBox="0 0 120 132" role="img" aria-label={label} className={`character ${className}`} data-skin={avatar.skin} data-hair={avatar.hairColor} data-clothes={avatar.clothes}>
     <g transform={peek ? `rotate(${peek === "right" ? chatPeekDegrees : -chatPeekDegrees} 60 110)` : undefined}>
     {avatar.hair === "bun" && <circle cx="60" cy="19" r="17" className="character-hair" />}
     {avatar.hair === "bob" && <path d="M23 49Q20 11 60 11Q100 11 97 49L100 87Q60 98 20 87Z" className="character-hair" />}
-    <path d={body} className="character-clothes" />
+    <path d={peek ? peekingBody : body} transform={peek === "left" ? "translate(120 0) scale(-1 1)" : undefined} className="character-clothes" />
     <path d="M50 78V94Q60 103 70 94V78" className="character-skin" />
     {avatar.outfit === "hoodie" && <><path d="M38 94Q43 113 60 106Q78 112 82 94" fill="none" className="character-seam" strokeWidth="4" /><path d="M48 103V118M72 103V118" fill="none" className="character-trim" strokeWidth="3" strokeLinecap="round" /></>}
     {avatar.outfit === "collar" && <path d="M44 92L60 102L49 110L38 97M76 92L60 102L71 110L82 97" className="character-trim-fill" />}
@@ -31,5 +32,10 @@ export function Character({ avatar, className = "", label = "내 캐릭터", pee
     {avatar.mouth === "surprised" && <ellipse cx="60" cy="79" rx="4" ry="5" className="character-ink" />}
     {avatar.eyewear !== "none" && <g className="character-ink-stroke" strokeWidth="3" fill={avatar.eyewear === "sun" ? "var(--avatar-ink)" : "none"}><path d="M55 57H65M28 55H32M88 55H92" />{avatar.eyewear === "round" ? <><circle cx="44" cy="57" r="11" /><circle cx="76" cy="57" r="11" /></> : <><rect x="32" y="49" width="24" height="18" rx="5" /><rect x="64" y="49" width="24" height="18" rx="5" /></>}</g>}
     </g>
+    {peek && <g transform={peek === "left" ? "translate(120 0) scale(-1 1)" : undefined}>
+      <path d="M23 108Q40 107 46 93L59 101Q48 125 23 123Z" className="character-clothes" />
+      <path d="M47 86Q51 80 55 84L59 89Q65 88 65 94V101Q63 109 55 109Q47 108 47 103Z" className="character-skin" />
+      <path d="M54 92H62M54 98H63M54 104H61" className="character-nose" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+    </g>}
   </svg>;
 }

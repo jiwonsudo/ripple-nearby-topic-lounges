@@ -36,5 +36,5 @@ use the editor.
 - Use the origin-aware wave only for room entry; explicit room returns use a gentle directional crossfade even when the destination is a lounge, and reduced-motion users bypass the wave.
 - Portal sheets into the phone shell rather than animated screen layers so their backdrop and content stay above navigation without escaping the phone frame.
 - Keep avatar choices in typed browser-safe data with token-colored SVG rendering; a draft editor commits to shared React state so profile and chat use the same character without photos or backend storage.
-- Anchor chat characters absolutely to full-width message rows and clip them at the scroll viewport edges; reserve a separate bubble gutter so character shape cannot affect text layout.
-- Use browser View Transitions for theme changes with a button-origin circular reveal of the fully recolored screen; unsupported browsers and reduced-motion preferences change theme directly.
+- Anchor chat characters absolutely to full-width message rows and clip them at the scroll viewport edges; use mirrored outward-extending torso paths for peek poses and reserve a separate bubble gutter so character shape cannot affect text layout.
+- Use browser View Transitions for theme changes with a button-origin circular reveal of the fully recolored screen, except the chat settings switch changes shared theme directly; unsupported browsers and reduced-motion preferences also change theme directly.
