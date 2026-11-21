@@ -38,3 +38,5 @@ use the editor.
 - Keep avatar choices in typed browser-safe data with token-colored SVG rendering; a draft editor commits to shared React state so profile and chat use the same character without photos or backend storage.
 - Anchor chat characters absolutely to full-width message rows and clip them at the scroll viewport edges; use mirrored outward-extending torso paths for peek poses and reserve a separate bubble gutter so character shape cannot affect text layout.
 - Use browser View Transitions for theme changes with a button-origin circular reveal of the fully recolored screen, except the chat settings switch changes shared theme directly; unsupported browsers and reduced-motion preferences also change theme directly.
+- Permission logo and animated ripples share the same fixed-size anchor; position the wave origin at the logo asset's splash center (50%, 70.3125%) rather than offsetting separate page layers.
+- Character SVGs declare intrinsic dimensions, token-based paint attributes and their own peek clip so delayed CSS cannot produce oversized black silhouettes or leak torso geometry across messages.

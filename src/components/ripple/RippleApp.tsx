@@ -181,8 +181,10 @@ function Permission({ onAllow }: { onAllow: () => void }) {
   return (
     <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-10">
       <div className="relative mt-6 h-56 shrink-0">
-        <div className="absolute inset-x-0 top-[calc(50%+18px)] scale-y-[0.45]"><Ripples size={240} count={4} period={1.2} /></div>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"><RippleLogo large symbolOnly /></div>
+        <div data-testid="permission-logo-anchor" className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 leading-none">
+          <div data-testid="permission-wave-origin" className="absolute left-1/2 top-[70.3125%] h-0 w-0"><Ripples size={240} count={4} period={1.2} /></div>
+          <div className="relative"><RippleLogo large symbolOnly /></div>
+        </div>
         <p className="absolute inset-x-0 bottom-0 text-center text-[32px] font-bold">Ripple</p>
       </div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 text-[30px] font-extrabold leading-tight tracking-normal">
