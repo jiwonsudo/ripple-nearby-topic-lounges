@@ -67,8 +67,11 @@ void main() {
 }
 `;
 
-export default function WaterSurface({ dark }: { dark: boolean }) {
+export default function WaterSurface({ dark, active = true }: { dark: boolean; active?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
+  const activeRef = useRef(active);
+  const resume = useRef<(() => void) | null>(null);
+  useEffect(() => { activeRef.current = active; resume.current?.(); }, [active]);
   useEffect(() => {
     const element = host.current;
     if (!element) return;
@@ -111,18 +114,20 @@ export default function WaterSurface({ dark }: { dark: boolean }) {
       const render = () => {
         uniforms.uTime.value = reduced ? 1.5 : clock.getElapsedTime();
         renderer.render(scene,camera);
-        if (!reduced) frame = requestAnimationFrame(render);
+        if (!reduced && activeRef.current) frame = requestAnimationFrame(render);
       };
       let touchIndex = 0;
       const touch = (event: PointerEvent) => {
         const box = element.getBoundingClientRect();
         const ripple = uniforms.uTouches.value[touchIndex];
-        if (!ripple || reduced) return;
+        if (!ripple || reduced || !activeRef.current) return;
         ripple.set(((event.clientX-box.left)/box.width-0.5)*box.width/box.height,0.5-(event.clientY-box.top)/box.height,uniforms.uTime.value);
         touchIndex = (touchIndex + 1) % uniforms.uTouches.value.length;
       };
+      resume.current = () => { cancelAnimationFrame(frame); if (activeRef.current) render(); };
       element.addEventListener("pointerdown",touch); render();
-      dispose = () => { cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+      element.dataset['ready'] = "true";
+      dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
     });
     return () => { cancelled = true; dispose?.(); };
   }, [dark]);

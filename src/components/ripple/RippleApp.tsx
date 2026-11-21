@@ -72,6 +72,8 @@ export function RippleApp() {
   const [theme, setRawTheme] = useState<ThemeMode>(defaultAppearance.theme);
   const [chatSize, setChatSize] = useState<ChatSize>(defaultAppearance.chatSize);
   const [screen, setRawScreen] = useState<Screen>("permission");
+  const [waterMounted, setWaterMounted] = useState(false);
+  useEffect(() => { setWaterMounted(true); }, []);
   const shell = useRef<HTMLDivElement>(null);
   const origin = useRef({ x: 195, y: 420 });
   const navigating = useRef(false);
@@ -117,6 +119,7 @@ export function RippleApp() {
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
       <div ref={shell} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest("button"); const box = shell.current?.getBoundingClientRect(); if (button && box) { const target = button.getBoundingClientRect(); origin.current = { x: target.left-box.left+target.width/2, y: target.top-box.top+target.height/2 }; } }} data-chat-size={chatSize} className="phone-shell relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
+        {waterMounted && (screen === "permission" || screen === "home") && <div aria-hidden={screen !== "home"} className={`absolute inset-0 ${screen === "permission" ? "invisible" : ""}`}><Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} active={screen === "home"} /></Suspense></div>}
         <AnimatePresence mode="sync" custom={returning}>
           <motion.div
             key={screen}
@@ -126,7 +129,7 @@ export function RippleApp() {
             variants={{ leaving: (back: boolean) => ({ opacity: 0, x: back ? 16 : 0, transition: { duration: back ? 0.24 : 0.12, ease } }) }}
             exit="leaving"
             transition={{ duration: returning ? 0.24 : 0.12, ease }}
-            className="absolute inset-0 z-10 flex flex-col"
+            className={`absolute inset-0 z-10 flex flex-col ${screen === "home" ? "pointer-events-none" : "bg-background"}`}
           >
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
@@ -214,8 +217,7 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
   const [sheet, setSheet] = useState(false);
   const { theme, setTheme } = useContext(AppearanceContext);
   return (
-    <div className="water-home no-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-28">
-      <Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} /></Suspense>
+    <div className="water-home no-scrollbar pointer-events-none relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-28">
       <header className="water-content flex shrink-0 items-center justify-between px-6 pt-6">
         <div><h1><RippleLogo /></h1><p className="mt-1 flex items-center gap-1 text-xs font-medium text-muted-foreground"><MapPin className="h-3 w-3" />상명대 미래백년관</p></div>
         <Button variant="secondary" size="icon" aria-label={theme === "light" ? "다크 모드 켜기" : "라이트 모드 켜기"} onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="h-10 w-10 rounded-full">{theme === "light" ? <Moon /> : <Sun />}</Button>
@@ -271,9 +273,9 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
     <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
       {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
-          className={`chat-row relative flex min-h-16 items-start ${m.me ? "justify-end" : ""}`}>
-          <div className={`chat-character pointer-events-none absolute top-1 h-[60px] w-[54px] ${m.me ? "-right-[22px]" : "-left-[22px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
-          <div className={`min-w-0 max-w-[calc(100%-72px)] ${m.me ? "ml-5 mr-[52px] items-end" : "ml-[52px] mr-5"} flex flex-col`}>
+          className={`chat-row relative flex min-h-14 items-start ${m.me ? "justify-end" : ""}`}>
+          <div className={`chat-character pointer-events-none absolute top-1 h-[46px] w-[42px] ${m.me ? "-right-[17px]" : "-left-[17px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
+          <div className={`min-w-0 max-w-[calc(100%-64px)] ${m.me ? "ml-5 mr-11 items-end" : "ml-11 mr-5"} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
               className={`chat-message select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>

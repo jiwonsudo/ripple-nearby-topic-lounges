@@ -10,7 +10,7 @@ export function Character({ avatar, className = "", label = "내 캐릭터", pee
   const trim = "var(--avatar-white, var(--background))";
   const body = avatar.body === "slim" ? "M39 91Q60 81 81 91L88 128H32Z" : avatar.body === "broad" ? "M24 97Q60 78 96 97L106 128H14Z" : "M30 97Q60 80 90 97Q103 109 98 128H22Q17 109 30 97Z";
   const peekingBody = avatar.body === "slim" ? "M39 91Q60 81 81 91Q88 111 54 136L-40 210H-100L16 125Q28 105 39 91Z" : avatar.body === "broad" ? "M24 97Q60 78 96 97Q108 113 54 136L-40 210H-110L0 132Q12 108 24 97Z" : "M30 97Q60 80 90 97Q103 113 54 136L-40 210H-100L6 130Q17 109 30 97Z";
-  return <svg width={peek ? 54 : 120} height={peek ? 60 : 132} viewBox="0 0 120 132" fill={skin} role="img" aria-label={label} className={`character ${className}`} data-skin={avatar.skin} data-hair={avatar.hairColor} data-clothes={avatar.clothes}>
+  return <svg width={peek ? 42 : 120} height={peek ? 46 : 132} viewBox="0 0 120 132" fill={skin} role="img" aria-label={label} className={`character ${className}`} data-skin={avatar.skin} data-hair={avatar.hairColor} data-clothes={avatar.clothes}>
     {peek && <defs><clipPath id={clipId}><rect x={peek === "right" ? 49 : -60} y="-20" width="131" height="180" /></clipPath></defs>}
     <g clipPath={peek ? `url(#${clipId})` : undefined}>
     <g transform={peek ? `rotate(${peek === "right" ? chatPeekDegrees : -chatPeekDegrees} 60 110)` : undefined}>
@@ -42,9 +42,11 @@ export function Character({ avatar, className = "", label = "내 캐릭터", pee
     {avatar.eyewear !== "none" && <g stroke={ink} className="character-ink-stroke" strokeWidth="3" fill={avatar.eyewear === "sun" ? ink : "none"}><path d="M55 57H65M28 55H32M88 55H92" />{avatar.eyewear === "round" ? <><circle cx="44" cy="57" r="11" /><circle cx="76" cy="57" r="11" /></> : <><rect x="32" y="49" width="24" height="18" rx="5" /><rect x="64" y="49" width="24" height="18" rx="5" /></>}</g>}
     </g>
     {peek && <g transform={peek === "left" ? "translate(120 0) scale(-1 1)" : undefined}>
-      <path d="M83 99Q94 110 84 120Q75 129 56 129L52 112Q71 116 73 102Z" fill={clothes} className="character-clothes" />
-      <path d="M49 111Q48 104 53 103Q58 103 59 111L64 110Q69 109 70 114V128Q67 137 58 137Q49 136 49 130Z" fill={skin} className="character-skin" />
-      <path d="M56 116H67M56 122H68M56 128H66" stroke={ink} className="character-nose" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M82 103Q98 105 102 119Q104 132 63 145L51 134Q85 121 81 115L72 112Z" fill={clothes} className="character-clothes" />
+      <path d="M44 134L51 133Q59 130 62 134Q63 138 57 139Q65 137 65 142Q65 145 59 145Q65 145 64 149Q63 152 57 152Q62 152 61 155Q58 159 50 156L44 151Z" fill={skin} className="character-skin" />
+      <path d="M52 140H60M52 146H60M52 152H57" stroke={ink} className="character-nose" fill="none" strokeWidth="1" strokeLinecap="round" />
+      <path d="M44 80L51 79Q59 76 62 80Q63 84 57 85Q65 83 65 88Q65 91 59 91Q65 91 64 95Q63 98 57 98Q62 98 61 101Q58 105 50 102L44 97Z" fill={skin} className="character-skin" />
+      <path d="M52 86H60M52 92H60M52 98H57" stroke={ink} className="character-nose" fill="none" strokeWidth="1" strokeLinecap="round" />
     </g>}
     </g>
   </svg>;
