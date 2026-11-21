@@ -1,5 +1,7 @@
-import { Character } from "./Character";
-import { avatarForNickname, type Avatar } from "./avatar";
+import { useEffect, useRef } from "react";
+import { PoolCharacter } from "./PoolCharacter";
+import { createPoolBody, poolActivity, stepPoolBody, type PoolFrame } from "./pool-motion";
+import { distinctPoolAvatars, type Avatar } from "./avatar";
 
 // The first four IDs are the same people shown in the lounge, not new avatars.
 export const nearbyRipplers = [
@@ -19,22 +21,42 @@ export const nearbyRipplers = [
 export const nearbyRipplerCount = nearbyRipplers.length + 1;
 
 export function SwimmingRipplers({ avatar, nickname, userId }: { avatar: Avatar; nickname: string; userId: string }) {
-  const people = [{ id: userId, nickname, avatar, me: true }, ...nearbyRipplers.map((person) => ({ ...person, avatar: avatarForNickname(person.id), me: false }))];
-  return <div className="swimming-ripplers absolute inset-0" aria-label={`주변 ${people.length}명의 캐릭터가 헤엄치는 수영장`}>
-    {people.map((person) => <div key={person.id} data-swimmer-id={person.id} className="pool-swimmer">
-      <div className="swimmer-drift">
-        <div className="swimmer-wake" aria-hidden="true" />
-        <div className="swimmer-body">
-          <svg className="swimmer-limbs" width="56" height="80" viewBox="0 0 56 80" aria-hidden="true" fill={`var(--avatar-${person.avatar.skin})`}>
-            <g className="swimmer-arm swimmer-arm-left"><path d="M15 37Q5 39 5 48L4 56Q5 60 8 57L11 46L19 43Z" /></g>
-            <g className="swimmer-arm swimmer-arm-right"><path d="M41 37Q51 39 51 48L52 56Q51 60 48 57L45 46L37 43Z" /></g>
-            <g className="swimmer-leg swimmer-leg-left"><path d="M19 50L18 68Q13 73 16 76Q20 78 23 71L27 53Z" /></g>
-            <g className="swimmer-leg swimmer-leg-right"><path d="M29 53L33 71Q36 78 40 76Q43 73 38 68L37 50Z" /></g>
-          </svg>
-          <Character avatar={person.avatar} label={person.me ? "내 수영 캐릭터" : `${person.nickname} 수영 캐릭터`} className="swimmer-character" />
-        </div>
-        {person.me && <span className="swimmer-self">나</span>}
-      </div>
+  const mockAvatars = distinctPoolAvatars(nearbyRipplers.map((person) => person.id), avatar.floatColor);
+  const people = [{ id: userId, nickname, avatar, me: true }, ...nearbyRipplers.map((person, index) => ({ ...person, avatar: mockAvatars[index] ?? avatar, me: false }))];
+  const host = useRef<HTMLDivElement>(null);
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
+  useEffect(() => {
+    const element = host.current;
+    const shell = element?.closest(".phone-shell");
+    if (!element || !shell) return;
+    const rows = Array.from(element.querySelectorAll<HTMLElement>("[data-swimmer-id]"));
+    const bodies = peopleRef.current.map((person, index) => createPoolBody(index, element.clientWidth, element.clientHeight, poolActivity(person.avatar) === "floating"));
+    const update = (frame: PoolFrame) => {
+      const box = element.getBoundingClientRect(); const parent = shell.getBoundingClientRect();
+      const touches = frame.touches.map((touch) => ({ ...touch, x: touch.x - (box.left - parent.left), y: touch.y - (box.top - parent.top) }));
+      rows.forEach((row, index) => {
+        const person = peopleRef.current[index]; if (!person) return;
+        const previous = bodies[index]; if (!previous) return;
+        const pos = stepPoolBody(previous, frame.time, box.width, box.height, poolActivity(person.avatar) === "floating", touches, frame.height);
+        bodies[index] = pos;
+        row.style.transform = `translate3d(${pos.x - 20}px,${pos.y - 31}px,0)`;
+        const body = row.querySelector<HTMLElement>(".swimmer-body");
+        if (body) body.style.transform = `rotate(${pos.rotation}deg)`;
+        row.dataset['wavePush'] = pos.push.toFixed(2);
+        row.dataset['poolX'] = String(pos.x + box.left - parent.left);
+        row.dataset['poolY'] = String(pos.y + box.top - parent.top);
+      });
+    };
+    update({ time: 1.5, width: element.clientWidth, height: element.clientHeight, touches: [] });
+    const tick = (event: Event) => update((event as CustomEvent<PoolFrame>).detail);
+    shell.addEventListener("pool-frame", tick);
+    return () => shell.removeEventListener("pool-frame", tick);
+  }, []);
+  return <div ref={host} className="swimming-ripplers absolute inset-0" aria-label={`주변 ${people.length}명의 탑뷰 수영장 캐릭터`}>
+    {people.map((person) => <div key={person.id} data-swimmer-id={person.id} data-activity={poolActivity(person.avatar)} className="pool-swimmer">
+      <div className="swimmer-body"><PoolCharacter avatar={person.avatar} label={person.me ? "내 수영 캐릭터" : `${person.nickname} 수영 캐릭터`} className="h-full w-full" /></div>
+      {person.me && <span className="swimmer-self">나</span>}
     </div>)}
   </div>;
 }

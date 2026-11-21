@@ -126,13 +126,14 @@
   --radar-line: oklch(0.68 0.13 250 / 0.2);
   --radar-fill: oklch(0.68 0.13 250 / 0.035);
   --chat-font-size: 14px;
-  --water-deep: oklch(0.77 0.08 235);
-  --water-shallow: oklch(0.97 0.013 230);
+  --water-deep: oklch(0.58 0.16 245);
+  --water-shallow: oklch(0.8 0.1 237);
   --water-highlight: oklch(1 0 0);
   --water-count-shadow: 0 2px 18px oklch(1 0 0 / 0.7);
-  --pool-floor: oklch(0.88 0.06 222);
-  --pool-grout: oklch(0.76 0.065 225 / 0.4);
-  --pool-lettering: oklch(0.43 0.095 237);
+  --pool-floor: oklch(0.69 0.14 240);
+  --pool-grout: oklch(0.86 0.06 235 / 0.25);
+  --pool-lettering: oklch(0.96 0.024 235);
+  --pool-mask: oklch(0.87 0.09 220);
   --swimmer-wake: oklch(1 0 0 / 0.65);
   --swimmer-shadow: 0 9px 5px oklch(0.36 0.065 225 / 0.18);
   --avatar-ink: oklch(0.24 0.02 265);
@@ -140,6 +141,14 @@
   --avatar-cocoa: oklch(0.37 0.065 50);
   --avatar-gold: oklch(0.79 0.14 80);
   --avatar-blue: oklch(0.62 0.2 255);
+  --avatar-coral: oklch(0.74 0.15 30);
+  --avatar-lilac: oklch(0.77 0.1 310);
+  --avatar-aqua: oklch(0.82 0.1 205);
+  --avatar-tangerine: oklch(0.8 0.15 60);
+  --avatar-cherry: oklch(0.62 0.2 15);
+  --avatar-lime: oklch(0.85 0.17 125);
+  --avatar-lavender: oklch(0.65 0.13 285);
+  --avatar-ice: oklch(0.94 0.035 235);
   --avatar-rose: oklch(0.76 0.15 355);
   --avatar-mint: oklch(0.76 0.13 170);
   --avatar-lemon: oklch(0.88 0.16 95);
@@ -177,13 +186,13 @@
   --radar-line: oklch(0.73 0.16 245 / 0.25);
   --radar-fill: oklch(0.73 0.16 245 / 0.045);
   --shadow-core: 0 0 0 8px oklch(0.73 0.16 245 / 0.12), 0 8px 24px oklch(0.1 0.01 265 / 0.25);
-  --water-deep: oklch(0.19 0.025 235);
-  --water-shallow: oklch(0.4 0.07 230);
+  --water-deep: oklch(0.29 0.095 250);
+  --water-shallow: oklch(0.5 0.12 242);
   --water-highlight: oklch(0.76 0.07 220);
   --water-count-shadow: 0 2px 18px oklch(0.1 0.02 230 / 0.5);
-  --pool-floor: oklch(0.33 0.065 225);
-  --pool-grout: oklch(0.54 0.06 225 / 0.3);
-  --pool-lettering: oklch(0.76 0.07 222);
+  --pool-floor: oklch(0.39 0.12 245);
+  --pool-grout: oklch(0.65 0.1 240 / 0.25);
+  --pool-lettering: oklch(0.9 0.04 235);
   --swimmer-wake: oklch(0.85 0.035 220 / 0.4);
   --swimmer-shadow: 0 9px 5px oklch(0.12 0.03 225 / 0.3);
 }
@@ -269,44 +278,30 @@
 .water-center { pointer-events: none; }
 .water-count { text-shadow: var(--water-count-shadow); }
 .swimming-ripplers { overflow: hidden; pointer-events: none; }
-.pool-swimmer { position: absolute; width: 56px; height: 80px; left: var(--swim-x); top: var(--swim-y); transform: translate(-50%, -50%); }
-.swimmer-drift { position: relative; width: 100%; height: 100%; animation: swimmer-drift var(--swim-duration, 15s) ease-in-out infinite; animation-delay: var(--swim-delay, 0s); }
-.swimmer-body { position: relative; width: 56px; height: 80px; transform: rotate(var(--swim-heading, 0deg)); filter: drop-shadow(var(--swimmer-shadow)); }
-.swimmer-character { position: absolute; width: 48px; height: 53px; left: 4px; top: 0; }
-.swimmer-limbs { position: absolute; inset: 0; }
-.swimmer-arm, .swimmer-leg { transform-box: view-box; animation: swimmer-paddle 2.6s ease-in-out infinite; animation-delay: var(--swim-delay, 0s); }
-.swimmer-arm-left { transform-origin: 17px 40px; }
-.swimmer-arm-right { transform-origin: 39px 40px; animation-direction: reverse; }
-.swimmer-leg-left { transform-origin: 23px 51px; animation-duration: 1.5s; }
-.swimmer-leg-right { transform-origin: 33px 51px; animation-duration: 1.5s; animation-direction: reverse; }
-.swimmer-wake { position: absolute; inset: 4px -6px -2px; border: 1.5px solid var(--swimmer-wake); border-radius: 50%; transform: rotate(var(--swim-heading, 0deg)); animation: swimmer-wake 3s ease-out infinite; animation-delay: var(--swim-delay, 0s); }
-.swimmer-self { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--pool-lettering); }
-.pool-swimmer:nth-child(1) { --swim-x: 22%; --swim-y: 52%; --swim-heading: -24deg; --swim-duration: 17s; --swim-delay: -4s; }
-.pool-swimmer:nth-child(2) { --swim-x: 17%; --swim-y: 14%; --swim-heading: 32deg; --swim-duration: 19s; --swim-delay: -8s; }
-.pool-swimmer:nth-child(3) { --swim-x: 47%; --swim-y: 11%; --swim-heading: -38deg; --swim-duration: 16s; --swim-delay: -3s; }
-.pool-swimmer:nth-child(4) { --swim-x: 80%; --swim-y: 14%; --swim-heading: 20deg; --swim-duration: 21s; --swim-delay: -12s; }
-.pool-swimmer:nth-child(5) { --swim-x: 33%; --swim-y: 30%; --swim-heading: 55deg; --swim-duration: 18s; --swim-delay: -9s; }
-.pool-swimmer:nth-child(6) { --swim-x: 65%; --swim-y: 29%; --swim-heading: -22deg; --swim-duration: 20s; --swim-delay: -6s; }
-.pool-swimmer:nth-child(7) { --swim-x: 84%; --swim-y: 48%; --swim-heading: 28deg; --swim-duration: 17s; --swim-delay: -11s; }
-.pool-swimmer:nth-child(8) { --swim-x: 38%; --swim-y: 76%; --swim-heading: -36deg; --swim-duration: 22s; --swim-delay: -7s; }
-.pool-swimmer:nth-child(9) { --swim-x: 64%; --swim-y: 74%; --swim-heading: 26deg; --swim-duration: 18s; --swim-delay: -13s; }
-.pool-swimmer:nth-child(10) { --swim-x: 14%; --swim-y: 86%; --swim-heading: 48deg; --swim-duration: 20s; --swim-delay: -5s; }
-.pool-swimmer:nth-child(11) { --swim-x: 82%; --swim-y: 88%; --swim-heading: -35deg; --swim-duration: 16s; --swim-delay: -10s; }
-.pool-swimmer:nth-child(12) { --swim-x: 49%; --swim-y: 94%; --swim-heading: 12deg; --swim-duration: 23s; --swim-delay: -15s; }
-@keyframes swimmer-drift { 0%, 100% { transform: translate(-7px, 7px) rotate(-4deg); } 35% { transform: translate(11px, -8px) rotate(4deg); } 70% { transform: translate(-3px, -15px) rotate(-2deg); } }
-@keyframes swimmer-paddle { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(20deg); } }
-@keyframes swimmer-wake { 0% { scale: 0.72; opacity: 0; } 25% { opacity: 0.6; } 100% { scale: 1.22; opacity: 0; } }
+.pool-swimmer { position: absolute; top: 0; left: 0; width: 40px; height: 62px; will-change: transform; }
+.swimmer-body { position: relative; width: 40px; height: 62px; filter: drop-shadow(var(--swimmer-shadow)); }
+.ripple-app button .pool-character { width: 100%; height: 100%; }
+.pool-character { overflow: visible; }
+.swimmer-self { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 700; color: var(--pool-lettering); }
+.pool-stroke, .pool-kick { transform-box: view-box; animation: pool-stroke 1.9s ease-in-out infinite; }
+.pool-stroke-left { transform-origin: 43px 53px; }
+.pool-stroke-right { transform-origin: 77px 53px; animation-delay: -.95s; }
+.pool-kick-left { transform-origin: 51px 88px; animation-duration: 1s; }
+.pool-kick-right { transform-origin: 69px 88px; animation-duration: 1s; animation-delay: -.5s; }
+@keyframes pool-stroke { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(20deg); } }
+.pool-editor-preview { background-color: var(--pool-floor); background-image: linear-gradient(var(--pool-grout) 1px, transparent 1px), linear-gradient(90deg, var(--pool-grout) 1px, transparent 1px); background-size: 32px 32px; }
+.splash-screen { background: var(--background); }
+.splash-symbol > span { pointer-events: none; }
+.splash-symbol svg, .splash-symbol img { width: 120px; height: 120px; }
+.splash-ring { position: absolute; width: 100px; height: 100px; border: 1px solid var(--primary); border-radius: 50%; opacity: 0; animation: splash-wave 1.6s ease-out infinite; }
+.splash-ring-delayed { animation-delay: -.8s; }
+@keyframes splash-wave { 0% { transform: scale(.65); opacity: .5; } 100% { transform: scale(1.6); opacity: 0; } }
+.water-home > .water-content { z-index: 1; }
+.water-home > .water-content p { color: var(--foreground); }
+.water-home > .water-content p.text-xs { opacity: .75; }
 @media (max-height: 700px) {
   .water-home > .water-content.mt-8 { margin-top: 16px; }
   .water-home .water-center { min-height: 210px; }
-  .pool-swimmer { width: 56px; height: 80px; }
-  .swimmer-body { width: 56px; height: 80px; transform: scale(0.65) rotate(var(--swim-heading, 0deg)); transform-origin: center; }
-  .swimmer-wake { inset: 15px 2px 12px; }
-  .swimmer-self { bottom: 9px; }
-  .pool-swimmer:nth-child(2), .pool-swimmer:nth-child(3), .pool-swimmer:nth-child(4) { --swim-y: 20%; }
-  .pool-swimmer:nth-child(5), .pool-swimmer:nth-child(6) { --swim-y: 37%; }
-  .pool-swimmer:nth-child(8), .pool-swimmer:nth-child(9) { --swim-y: 73%; }
-  .pool-swimmer:nth-child(10), .pool-swimmer:nth-child(11), .pool-swimmer:nth-child(12) { --swim-y: 86%; }
 }
 .live-dot { animation: live-pulse 2.4s ease-in-out infinite; }
 .chat-message { font-size: var(--chat-font-size); overflow-wrap: anywhere; }
@@ -326,3 +321,12 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+.character-swatch[data-tone="coral"] { background: var(--avatar-coral); }
+.character-swatch[data-tone="lilac"] { background: var(--avatar-lilac); }
+.character-swatch[data-tone="aqua"] { background: var(--avatar-aqua); }
+.character-swatch[data-tone="tangerine"] { background: var(--avatar-tangerine); }
+.character-swatch[data-tone="cherry"] { background: var(--avatar-cherry); }
+.character-swatch[data-tone="lime"] { background: var(--avatar-lime); }
+.character-swatch[data-tone="lavender"] { background: var(--avatar-lavender); }
+.character-swatch[data-tone="ice"] { background: var(--avatar-ice); }

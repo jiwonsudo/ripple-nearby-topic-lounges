@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { PoolFrame, PoolTouch } from "./pool-motion";
 
 const vertexShader = `
 varying vec2 vUv;
@@ -15,6 +16,7 @@ uniform vec3 uShallow;
 uniform vec3 uHighlight;
 uniform sampler2D uFloor;
 uniform vec3 uTouches[6];
+uniform vec3 uSwimmers[12];
 
 float ring(vec2 p, vec2 origin, float clock, float strength) {
   float d = length(p - origin);
@@ -31,6 +33,11 @@ float surface(vec2 p) {
   w += ring(p, vec2(0.0,0.0), t+2.3, 0.012);
   w += ring(p, vec2(-0.29,0.24), t+0.8, 0.009);
   w += ring(p, vec2(0.3,-0.19), t+4.1, 0.01);
+  for (int i = 0; i < 12; i++) {
+    float d = length(p-uSwimmers[i].xy);
+    float fade = exp(-d*38.0);
+    w += sin(d*75.0-t*2.1+uSwimmers[i].z)*fade*0.0012;
+  }
   for (int i = 0; i < 6; i++) {
     float age = t-uTouches[i].z;
     float d = length(p-uTouches[i].xy);
@@ -70,10 +77,12 @@ void main() {
 }
 `;
 
-export default function WaterSurface({ dark, active = true, count = 12 }: { dark: boolean; active?: boolean; count?: number }) {
+export default function WaterSurface({ dark, active = true, count = 12, onReady }: { dark: boolean; active?: boolean; count?: number; onReady?: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const activeRef = useRef(active);
   const resume = useRef<(() => void) | null>(null);
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
   useEffect(() => { activeRef.current = active; resume.current?.(); }, [active]);
   useEffect(() => {
     const element = host.current;
@@ -84,7 +93,7 @@ export default function WaterSurface({ dark, active = true, count = 12 }: { dark
       if (cancelled) return;
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "low-power" }); }
-      catch { element.dataset['fallback'] = "true"; return; }
+      catch { element.dataset['fallback'] = "true"; readyRef.current?.(); return; }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       element.appendChild(renderer.domElement);
       const tokens = getComputedStyle(element);
@@ -128,6 +137,7 @@ export default function WaterSurface({ dark, active = true, count = 12 }: { dark
         uTime: { value: 0 }, uAspect: { value: 1 },
         uDeep: { value: color("--water-deep") }, uShallow: { value: color("--water-shallow") }, uHighlight: { value: color("--water-highlight") },
         uTouches: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0,0,-10)) },
+        uSwimmers: { value: Array.from({ length: 12 }, (_, i) => new THREE.Vector3(-10,-10,i)) },
         uFloor: { value: floorTexture },
       };
       const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
@@ -144,9 +154,25 @@ export default function WaterSurface({ dark, active = true, count = 12 }: { dark
       const clock = new THREE.Clock();
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let frame = 0;
+      let lastPoolFrame = -1;
+      let touches: PoolTouch[] = [];
+      const shell = element.closest(".phone-shell");
       const render = () => {
         uniforms.uTime.value = reduced ? 1.5 : clock.getElapsedTime();
         renderer.render(scene,camera);
+        if (activeRef.current && (reduced || uniforms.uTime.value - lastPoolFrame > 1 / 30)) {
+          lastPoolFrame = uniforms.uTime.value;
+          touches = touches.filter((touch) => uniforms.uTime.value - touch.time < 6);
+          const detail: PoolFrame = { time: uniforms.uTime.value, width: element.clientWidth, height: element.clientHeight, touches };
+          shell?.dispatchEvent(new CustomEvent<PoolFrame>("pool-frame", { detail }));
+          const swimmers = shell?.querySelectorAll<HTMLElement>("[data-swimmer-id]");
+          uniforms.uSwimmers.value.forEach((value, index) => {
+            const row = swimmers?.[index];
+            if (!row) { value.set(-10,-10,index); return; }
+            const x = Number(row.dataset['poolX']); const y = Number(row.dataset['poolY']);
+            value.set((x / element.clientWidth - 0.5) * uniforms.uAspect.value, 0.5 - y / element.clientHeight,index);
+          });
+        }
         if (!reduced && activeRef.current) frame = requestAnimationFrame(render);
       };
       let touchIndex = 0;
@@ -155,6 +181,7 @@ export default function WaterSurface({ dark, active = true, count = 12 }: { dark
         const ripple = uniforms.uTouches.value[touchIndex];
         if (!ripple || reduced || !activeRef.current) return;
         ripple.set(((event.clientX-box.left)/box.width-0.5)*box.width/box.height,0.5-(event.clientY-box.top)/box.height,uniforms.uTime.value);
+        touches = [...touches.slice(-5), { x: event.clientX - box.left, y: event.clientY - box.top, time: uniforms.uTime.value }];
         touchIndex = (touchIndex + 1) % uniforms.uTouches.value.length;
       };
       resume.current = () => {
@@ -167,6 +194,7 @@ export default function WaterSurface({ dark, active = true, count = 12 }: { dark
       };
       element.addEventListener("pointerdown",touch); render();
       element.dataset['ready'] = "true";
+      readyRef.current?.();
       dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); floorTexture.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
     });
     return () => { cancelled = true; dispose?.(); };

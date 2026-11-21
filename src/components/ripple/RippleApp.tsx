@@ -38,7 +38,7 @@ const AppearanceContext = createContext({
   setChatSize: (_value: ChatSize) => {},
 });
 
- type Screen = "permission" | "home" | "verify" | "lounge" | "room" | "past" | "settings";
+ type Screen = "splash" | "permission" | "home" | "verify" | "lounge" | "room" | "past" | "settings";
 type Target = { kind: "lounge" } | { kind: "room"; room: RoomInfo };
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -77,9 +77,17 @@ export function RippleApp() {
   const [avatar, setAvatar] = useState<Avatar>({ ...defaultAvatar });
   const [theme, setRawTheme] = useState<ThemeMode>(defaultAppearance.theme);
   const [chatSize, setChatSize] = useState<ChatSize>(defaultAppearance.chatSize);
-  const [screen, setRawScreen] = useState<Screen>("permission");
+  const [screen, setRawScreen] = useState<Screen>("splash");
   const [waterMounted, setWaterMounted] = useState(false);
+  const [waterReady, setWaterReady] = useState(false);
+  const [splashMinimum, setSplashMinimum] = useState(false);
   useEffect(() => { setWaterMounted(true); }, []);
+  useEffect(() => {
+    const minimum = setTimeout(() => setSplashMinimum(true), 850);
+    const maximum = setTimeout(() => setRawScreen((current) => current === "splash" ? "permission" : current), 2800);
+    return () => { clearTimeout(minimum); clearTimeout(maximum); };
+  }, []);
+  useEffect(() => { if (waterReady && splashMinimum) setRawScreen((current) => current === "splash" ? "permission" : current); }, [waterReady, splashMinimum]);
   const shell = useRef<HTMLDivElement>(null);
   const origin = useRef({ x: 195, y: 420 });
   const navigating = useRef(false);
@@ -131,18 +139,19 @@ export function RippleApp() {
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
       <div ref={shell} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest("button"); const box = shell.current?.getBoundingClientRect(); if (button && box) { const target = button.getBoundingClientRect(); origin.current = { x: target.left-box.left+target.width/2, y: target.top-box.top+target.height/2 }; } }} data-chat-size={chatSize} className="phone-shell relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
-        {waterMounted && (screen === "permission" || screen === "home") && <div aria-hidden={screen !== "home"} className={`absolute inset-0 ${screen === "permission" ? "invisible" : ""}`}><Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} active={screen === "home"} count={nearbyRipplerCount} /></Suspense></div>}
+        {waterMounted && (screen === "splash" || screen === "permission" || screen === "home") && <div aria-hidden={screen !== "home"} className={`absolute inset-0 ${screen !== "home" ? "invisible" : ""}`}><Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} active={screen === "home"} count={nearbyRipplerCount} onReady={() => setWaterReady(true)} /></Suspense></div>}
         <AnimatePresence mode="sync" custom={returning}>
           <motion.div
             key={screen}
             custom={returning}
-            initial={returning ? { opacity: 0, x: -12 } : { opacity: 0, x: 0 }}
+            initial={screen === "splash" ? { opacity: 1, x: 0 } : returning ? { opacity: 0, x: -12 } : { opacity: 0, x: 0 }}
             animate={{ opacity: 1, x: 0 }}
             variants={{ leaving: (back: boolean) => ({ opacity: 0, x: back ? 16 : 0, transition: { duration: back ? 0.24 : 0.12, ease } }) }}
             exit="leaving"
             transition={{ duration: returning ? 0.24 : 0.12, ease }}
             className={`absolute inset-0 z-10 flex flex-col ${screen === "home" ? "pointer-events-none" : "bg-background"}`}
           >
+            {screen === "splash" && <div data-testid="startup-splash" className="splash-screen relative flex flex-1 flex-col items-center justify-center gap-5"><div className="splash-symbol relative flex h-44 w-44 items-center justify-center"><span className="relative z-10"><RippleLogo symbolOnly /></span><span className="splash-ring" /><span className="splash-ring splash-ring-delayed" /></div><p className="text-[32px] font-extrabold text-primary">Ripple</p></div>}
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
             {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
