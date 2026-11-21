@@ -1,22 +1,35 @@
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { ArrowLeft, ChevronRight, Reply as ReplyIcon, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Reply as ReplyIcon, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight, Pencil, Bell, BellOff, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { chatSizes, defaultAppearance, type ChatSize, type ThemeMode } from "./appearance";
 import { topicImages } from "./topic-images";
-import { nearbyRooms, initialJoinedRooms, joinRoom, createMessage, isReplySwipe, type RoomInfo, type Msg } from "./rooms";
+import { nearbyRooms, initialJoinedRooms, joinRoom, createMessage, isReplySwipe, leaveJoinedRoom, toggleRoomMute, type RoomInfo, type Msg } from "./rooms";
 import { RippleLogo } from "./RippleLogo";
 import { Character } from "./Character";
 import { CharacterEditor } from "./CharacterEditor";
+import { NicknameEditor } from "./NicknameEditor";
+import { RoomListItem } from "./RoomListItem";
+import { blockUser, createReport, initialUser, rememberRoomNickname, visibleMessages, type BlockedUser, type ReportRecord, type UserIdentity } from "./identity";
 import { avatarForNickname, defaultAvatar, type Avatar } from "./avatar";
 
 const WaterSurface = lazy(() => import("./WaterSurface"));
 
 const MotionButton = motion.create(Button);
 const CharacterContext = createContext({ avatar: defaultAvatar, setAvatar: (_value: Avatar) => {} });
+const IdentityContext = createContext({
+  user: initialUser,
+  setNickname: (_nickname: string) => {},
+  roomNicknames: {} as Record<string, string>,
+  blocked: [] as BlockedUser[],
+  reports: [] as ReportRecord[],
+  block: (_message: Msg) => {},
+  unblock: (_userId: string) => {},
+  report: (_message: Msg, _roomId: string) => {},
+});
 const AppearanceContext = createContext({
   theme: defaultAppearance.theme,
   chatSize: defaultAppearance.chatSize,
@@ -29,30 +42,37 @@ type Target = { kind: "lounge" } | { kind: "room"; room: RoomInfo };
 const ease = [0.22, 1, 0.36, 1] as const;
 
 const loungeSeed: Msg[] = [
-  { id: 1, nick: "졸린 판다", emoji: "🐼", text: "여기 3층 콘센트 자리 아직 남았나요?" },
-  { id: 2, nick: "새벽 코더", emoji: "🦉", text: "창가 쪽 두 자리 비어 있어요!" },
-  { id: 3, nick: "민트 고양이", emoji: "🐱", text: "근데 오늘 뉴진스 신곡 들으신 분?" },
-  { id: 4, nick: "졸린 판다", emoji: "🐼", text: "헐 저 아침부터 반복 재생 중ㅋㅋ" },
-  { id: 0, nick: "Ripple", emoji: "💧", text: "", bot: true },
-  { id: 5, nick: "달리는 토끼", emoji: "🐰", text: "학식 오늘 돈가스래요 🍛" },
+  { id: 1, userId: "rippler-panda", nick: "졸린 판다", emoji: "🐼", text: "여기 3층 콘센트 자리 아직 남았나요?" },
+  { id: 2, userId: "rippler-coder", nick: "새벽 코더", emoji: "🦉", text: "창가 쪽 두 자리 비어 있어요!" },
+  { id: 3, userId: "rippler-mint", nick: "민트 고양이", emoji: "🐱", text: "근데 오늘 뉴진스 신곡 들으신 분?" },
+  { id: 4, userId: "rippler-panda", nick: "졸린 판다", emoji: "🐼", text: "헐 저 아침부터 반복 재생 중ㅋㅋ" },
+  { id: 0, userId: "ripple-bot", nick: "Ripple", emoji: "💧", text: "", bot: true },
+  { id: 5, userId: "rippler-rabbit", nick: "달리는 토끼", emoji: "🐰", text: "학식 오늘 돈가스래요 🍛" },
 ];
 const roomSeed: Msg[] = [
-  { id: 1, nick: "민트 고양이", emoji: "🐱", text: "후렴 진짜 중독성 미쳤어요" },
-  { id: 2, nick: "졸린 판다", emoji: "🐼", text: "뮤비 장소 어딘지 아시는 분?" },
-  { id: 3, nick: "새벽 코더", emoji: "🦉", text: "코딩하면서 듣기 딱 좋음" },
+  { id: 1, userId: "rippler-mint", nick: "민트 고양이", emoji: "🐱", text: "후렴 진짜 중독성 미쳤어요" },
+  { id: 2, userId: "rippler-panda", nick: "졸린 판다", emoji: "🐼", text: "뮤비 장소 어딘지 아시는 분?" },
+  { id: 3, userId: "rippler-coder", nick: "새벽 코더", emoji: "🦉", text: "코딩하면서 듣기 딱 좋음" },
 ];
 const roomMsgs: Record<string, Msg[]> = {
   "#학식": [
-    { id: 1, nick: "달리는 토끼", emoji: "🐰", text: "오늘 돈가스 줄 엄청 길어요" },
-    { id: 2, nick: "민트 고양이", emoji: "🐱", text: "2층 분식 쪽은 한산해요!" },
+    { id: 1, userId: "rippler-rabbit", nick: "달리는 토끼", emoji: "🐰", text: "오늘 돈가스 줄 엄청 길어요" },
+    { id: 2, userId: "rippler-mint", nick: "민트 고양이", emoji: "🐱", text: "2층 분식 쪽은 한산해요!" },
   ],
   "#해커톤": [
-    { id: 1, nick: "새벽 코더", emoji: "🦉", text: "팀 아직 안 구하신 분?" },
-    { id: 2, nick: "졸린 판다", emoji: "🐼", text: "프론트 하나 구해요 🙋" },
-    { id: 3, nick: "민트 고양이", emoji: "🐱", text: "발표 몇 시부터예요?" },
+    { id: 1, userId: "rippler-coder", nick: "새벽 코더", emoji: "🦉", text: "팀 아직 안 구하신 분?" },
+    { id: 2, userId: "rippler-panda", nick: "졸린 판다", emoji: "🐼", text: "프론트 하나 구해요 🙋" },
+    { id: 3, userId: "rippler-mint", nick: "민트 고양이", emoji: "🐱", text: "발표 몇 시부터예요?" },
   ],
 };
 export function RippleApp() {
+  const [user, setUser] = useState<UserIdentity>(initialUser);
+  const [roomNicknames, setRoomNicknames] = useState<Record<string, string>>(() => Object.fromEntries(initialJoinedRooms.map((rm) => [rm.id, initialUser.nickname])));
+  const rememberNickname = (roomId: string) => setRoomNicknames((names) => rememberRoomNickname(names, roomId, user.nickname));
+  const [blocked, setBlocked] = useState<BlockedUser[]>([{ userId: "rippler-noisy", nickname: "시끄러운 오리" }]);
+  const [reports, setReports] = useState<ReportRecord[]>([]);
+  const block = (message: Msg) => { if (message.userId !== user.id) setBlocked((entries) => blockUser(entries, { userId: message.userId, nickname: message.nick })); };
+  const report = (message: Msg, roomId: string) => { if (message.userId !== user.id) setReports((entries) => [createReport(message, roomId, Date.now(), new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })), ...entries]); };
   const [avatar, setAvatar] = useState<Avatar>({ ...defaultAvatar });
   const [theme, setRawTheme] = useState<ThemeMode>(defaultAppearance.theme);
   const [chatSize, setChatSize] = useState<ChatSize>(defaultAppearance.chatSize);
@@ -91,18 +111,20 @@ export function RippleApp() {
   const [verified, setVerified] = useState(false);
   const [room, setRoom] = useState<RoomInfo>(initialJoinedRooms[0] ?? { id: "future-newjeans-1121", tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "2026.11.21 14:30", n: 8, nearby: true });
   const [joinedRooms, setJoinedRooms] = useState(initialJoinedRooms);
+  const [mutedRooms, setMutedRooms] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<Record<string, Msg[]>>({});
   const updateMessages = (id: string, msgs: Msg[]) => setMessages((current) => ({ ...current, [id]: msgs }));
-  const enterRoom = (rm: RoomInfo, back: Screen) => { setJoinedRooms((current) => joinRoom(current, rm)); setRoom(rm); setRoomBack(back); setScreen("room"); };
+  const enterRoom = (rm: RoomInfo, back: Screen) => { rememberNickname(rm.id); setJoinedRooms((current) => joinRoom(current, rm)); setRoom(rm); setRoomBack(back); setScreen("room"); };
   const [roomBack, setRoomBack] = useState<Screen>("lounge");
   const [pending, setPending] = useState<Target>({ kind: "lounge" });
   const openTarget = (t: Target) => {
-    if (t.kind === "room") enterRoom(t.room, "home"); else setScreen("lounge");
+    if (t.kind === "room") enterRoom(t.room, "home"); else { rememberNickname("lounge-future"); setScreen("lounge"); }
   };
   const request = (t: Target) => { if (verified) openTarget(t); else { setPending(t); setScreen("verify"); } };
   const tab = screen === "past" ? "past" : screen === "settings" ? "settings" : screen === "home" ? "home" : null;
 
   return (
+    <IdentityContext.Provider value={{ user, setNickname: (nickname) => setUser((current) => ({ ...current, nickname })), roomNicknames, blocked, reports, block, unblock: (userId) => setBlocked((entries) => entries.filter((entry) => entry.userId !== userId)), report }}>
     <CharacterContext.Provider value={{ avatar, setAvatar }}>
     <AppearanceContext.Provider value={{ theme, chatSize, setTheme, setChatSize }}>
     <MotionConfig reducedMotion="user">
@@ -125,7 +147,7 @@ export function RippleApp() {
             {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
             {screen === "lounge" && <Lounge msgs={messages["lounge"] ?? loungeSeed} onMessages={(msgs) => updateMessages("lounge", msgs)} onBack={() => setScreen("home", true)} onRoom={() => { const rm = nearbyRooms[0]; if (rm) enterRoom(rm, "lounge"); }} />}
             {screen === "room" && <Room key={room.id} room={room} msgs={messages[room.id] ?? roomMsgs[room.tag] ?? roomSeed} onMessages={(msgs) => updateMessages(room.id, msgs)} onBack={() => setScreen(roomBack, true)} />}
-            {screen === "past" && <RegionalRooms joinedRooms={joinedRooms} onOpen={(rm) => enterRoom(rm, "past")} />}
+            {screen === "past" && <RegionalRooms joinedRooms={joinedRooms} mutedRooms={mutedRooms} onMute={(id) => setMutedRooms((current) => toggleRoomMute(current, id))} onLeave={(id) => setJoinedRooms((current) => leaveJoinedRoom(current, id))} onOpen={(rm) => enterRoom(rm, "past")} />}
             {screen === "settings" && <Settings verified={verified} onVerify={() => setScreen("verify")} />}
           </motion.div>
         </AnimatePresence>
@@ -136,6 +158,7 @@ export function RippleApp() {
     </MotionConfig>
     </AppearanceContext.Provider>
     </CharacterContext.Provider>
+    </IdentityContext.Provider>
   );
 }
 
@@ -240,21 +263,23 @@ function Header({ title, sub, onBack, right }: { title: string; sub?: string; on
   );
 }
 
-function useChat(msgs: Msg[], onMessages: (msgs: Msg[]) => void) {
+function useChat(msgs: Msg[], onMessages: (msgs: Msg[]) => void, roomId: string) {
+  const { user, roomNicknames, blocked } = useContext(IdentityContext);
   const [text, setText] = useState("");
   const [reply, setReply] = useState<Msg | null>(null);
   const send = () => {
-    const message = createMessage(Date.now(), text, reply);
+    const message = createMessage(Date.now(), text, reply, { id: user.id, nickname: roomNicknames[roomId] ?? user.nickname });
     if (!message) return;
     onMessages([...msgs, message]);
     setText("");
     setReply(null);
   };
-  return { msgs, text, setText, send, reply, setReply };
+  return { msgs: visibleMessages(msgs, blocked), text, setText, send, reply, setReply };
 }
 
 function ChatList({ msgs, onLong, onReply, bot }: { msgs: Msg[]; onLong: (m: Msg) => void; onReply: (m: Msg) => void; bot?: ReactNode }) {
   const { avatar } = useContext(CharacterContext);
+  const { blocked } = useContext(IdentityContext);
   const end = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gesture = useRef<{ x: number; y: number; id: number } | null>(null);
@@ -279,14 +304,14 @@ function ChatList({ msgs, onLong, onReply, bot }: { msgs: Msg[]; onLong: (m: Msg
     <div aria-label="대화 메시지" className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
       {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
         <motion.div key={m.id} data-message-id={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }} className={`chat-row relative flex min-h-14 items-start ${m.me ? "justify-end" : ""}`}>
-          <div className={`chat-character pointer-events-none absolute top-1 h-[46px] w-[42px] ${m.me ? "-right-[17px]" : "-left-[17px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
+          <div className={`chat-character pointer-events-none absolute top-1 h-[46px] w-[42px] ${m.me ? "-right-[17px]" : "-left-[17px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.userId)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
           <motion.div animate={{ x: swipe?.id === m.id ? swipe.x : 0 }} transition={{ duration: 0.16 }} className={`relative min-w-0 max-w-[calc(100%-64px)] ${m.me ? "ml-5 mr-11 items-end" : "ml-11 mr-5"} flex flex-col`}>
-            {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
+            <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}{m.me ? " · 나" : ""}</span>
             <div onPointerDown={(e) => { gesture.current = { x: e.clientX, y: e.clientY, id: m.id }; e.currentTarget.setPointerCapture(e.pointerId); timer.current = setTimeout(() => { gesture.current = null; onLong(m); }, 450); }}
               onPointerMove={(e) => { const start = gesture.current; if (!start || start.id !== m.id) return; const dx = e.clientX-start.x; const dy = e.clientY-start.y; if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancel(); if (Math.abs(dx) > Math.abs(dy)*1.5) setSwipe({ id: m.id, x: Math.max(-64, Math.min(64, dx)) }); }}
               onPointerUp={(e) => finish(m, e.clientX, e.clientY)} onPointerCancel={() => { cancel(); gesture.current = null; setSwipe(null); }} onContextMenu={(e) => { e.preventDefault(); onLong(m); }}
               className={`chat-message touch-pan-y select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>
-              {m.reply && <Button variant="ghost" aria-label={`${m.reply.nick}의 원문 보기`} onClick={() => { if (m.reply) jump(m.reply.id); }} className={`mb-2 h-auto w-full min-w-0 justify-start whitespace-normal rounded-lg px-2.5 py-2 text-left text-inherit hover:bg-background/20 hover:text-inherit ${m.me ? "bg-background/15" : "bg-background/60"}`}><span className="min-w-0"><span className="block text-[11px] font-semibold">{m.reply.nick}</span><span className="line-clamp-2 text-xs font-normal opacity-75">{m.reply.text}</span></span></Button>}
+              {m.reply && <Button variant="ghost" aria-label={`${m.reply.nick}의 원문 보기`} onClick={() => { if (m.reply) jump(m.reply.id); }} className={`mb-2 h-auto w-full min-w-0 justify-start whitespace-normal rounded-lg px-2.5 py-2 text-left text-inherit hover:bg-background/20 hover:text-inherit ${m.me ? "bg-background/15" : "bg-background/60"}`}><span className="min-w-0"><span className="block text-[11px] font-semibold">{m.reply.nick}</span><span className="line-clamp-2 text-xs font-normal opacity-75">{blocked.some((entry) => entry.userId === m.reply?.userId) ? "차단한 사용자의 메시지" : m.reply.text}</span></span></Button>}
               {m.text}
             </div>
           </motion.div>
@@ -331,7 +356,8 @@ function Sheet({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
-function ModerationSheet({ target, onClose, onReply }: { target: Msg | null; onClose: () => void; onReply: (m: Msg) => void }) {
+function ModerationSheet({ target, onClose, onReply, roomId }: { target: Msg | null; onClose: () => void; onReply: (m: Msg) => void; roomId: string }) {
+  const { block, report } = useContext(IdentityContext);
   const [done, setDone] = useState<string | null>(null);
   useEffect(() => setDone(null), [target]);
   return (
@@ -342,8 +368,8 @@ function ModerationSheet({ target, onClose, onReply }: { target: Msg | null; onC
         <>
           <p className="mb-3 px-1 text-sm text-muted-foreground">{target?.nick}님의 메시지</p>
           <Button variant="ghost" onClick={() => { if (target) onReply(target); onClose(); }} className="flex h-auto w-full justify-start gap-3 px-3 py-4 font-semibold"><ReplyIcon className="h-5 w-5" />답장하기</Button>
-          {!target?.me && <><Button variant="ghost" onClick={() => { setDone("신고가 접수됐어요"); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold text-destructive hover:bg-secondary"><ShieldAlert className="h-5 w-5" />신고하기</Button>
-          <Button variant="ghost" onClick={() => { setDone(`${target?.nick}님을 차단했어요`); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold hover:bg-secondary"><Ban className="h-5 w-5" />차단하기</Button></>}
+          {!target?.me && <><Button variant="ghost" onClick={() => { if (target) report(target, roomId); setDone("신고가 접수됐어요"); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold text-destructive hover:bg-secondary"><ShieldAlert className="h-5 w-5" />신고하기</Button>
+          <Button variant="ghost" onClick={() => { if (target) block(target); setDone(`${target?.nick}님을 차단했어요`); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold hover:bg-secondary"><Ban className="h-5 w-5" />차단하기</Button></>}
         </>
       )}
     </Sheet>
@@ -351,7 +377,7 @@ function ModerationSheet({ target, onClose, onReply }: { target: Msg | null; onC
 }
 
 function Lounge({ onBack, onRoom, msgs, onMessages }: { onBack: () => void; onRoom: () => void; msgs: Msg[]; onMessages: (msgs: Msg[]) => void }) {
-  const chat = useChat(msgs, onMessages);
+  const chat = useChat(msgs, onMessages, "lounge-future");
   const [target, setTarget] = useState<Msg | null>(null);
   const bot = (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
@@ -368,7 +394,7 @@ function Lounge({ onBack, onRoom, msgs, onMessages }: { onBack: () => void; onRo
       <Header title="미래백년관 리플" sub="지금 이곳에서 나누는 이야기" onBack={onBack} right={<ChatSettingsButton />} />
       <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} bot={bot} />
       <InputBar {...chat} />
-      <ModerationSheet target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
+      <ModerationSheet roomId="lounge-future" target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
     </div>
   );
 }
@@ -384,7 +410,7 @@ function Cover({ tag, c = "cover-1", big }: { tag: string; c?: string; big?: boo
 }
 
 function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () => void; msgs: Msg[]; onMessages: (msgs: Msg[]) => void }) {
-  const chat = useChat(msgs, onMessages);
+  const chat = useChat(msgs, onMessages, room.id);
   const [target, setTarget] = useState<Msg | null>(null);
   const [share, setShare] = useState(false);
   return (
@@ -398,7 +424,7 @@ function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () =
       </div>
       <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} />
       <InputBar {...chat} />
-      <ModerationSheet target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
+      <ModerationSheet roomId={room.id} target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
       <AnimatePresence>
         {share && (
           <motion.div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-background/90 p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -422,25 +448,41 @@ function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () =
   );
 }
 
-function RegionalRooms({ joinedRooms, onOpen }: { joinedRooms: RoomInfo[]; onOpen: (r: RoomInfo) => void }) {
+function RegionalRooms({ joinedRooms, onOpen, mutedRooms, onMute, onLeave }: { joinedRooms: RoomInfo[]; onOpen: (r: RoomInfo) => void; mutedRooms: Record<string, boolean>; onMute: (id: string) => void; onLeave: (id: string) => void }) {
   const [view, setView] = useState<"nearby" | "mine">("nearby");
   const [place, setPlace] = useState("전체 장소");
+  const [manage, setManage] = useState<RoomInfo | null>(null);
+  const [leaving, setLeaving] = useState<RoomInfo | null>(null);
   const places = [...new Set(joinedRooms.map((r) => r.place))];
-  const rooms = view === "nearby" ? nearbyRooms : joinedRooms.filter((r) => place === "전체 장소" || r.place === place);
+  const selectedPlace = place === "전체 장소" || places.includes(place) ? place : "전체 장소";
+  const rooms = view === "nearby" ? nearbyRooms : joinedRooms.filter((r) => selectedPlace === "전체 장소" || r.place === selectedPlace);
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
       <h1 className="mt-5 text-[30px] font-extrabold">지역 방</h1>
-      <div role="tablist" aria-label="방 목록" className="mt-5 flex border-b border-border">
-        {([ ["nearby", "주변 방"], ["mine", "내가 참여한 방"] ] as const).map(([key, label]) => <Button key={key} variant="ghost" role="tab" aria-selected={view === key} onClick={() => setView(key)} className={`h-11 flex-1 rounded-none border-b-2 font-bold ${view === key ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>{label}</Button>)}
+      <div role="tablist" aria-label="방 목록" className="mt-5 flex gap-1 rounded-xl bg-secondary p-1">
+        {([ ["nearby", "주변 방"], ["mine", "내가 참여한 방"] ] as const).map(([key, label]) => <Button key={key} variant="ghost" role="tab" aria-selected={view === key} onClick={() => setView(key)} className={`h-10 flex-1 rounded-lg font-bold ${view === key ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>{label}</Button>)}
       </div>
-      {view === "nearby" ? <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><MapPin className="h-3.5 w-3.5" />지금 상명대 미래백년관 근처</p> : <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">장소는 달라도, 이야기는 계속</p><select aria-label="참여한 장소" value={place} onChange={(e) => setPlace(e.target.value)} className="max-w-[160px] min-w-0 rounded-lg border border-border bg-secondary px-2 py-2 text-xs font-semibold"><option>전체 장소</option>{places.map((p) => <option key={p}>{p}</option>)}</select></div>}
-      <div className="mt-3 divide-y divide-border">
-        {rooms.map((r, i) => <MotionButton variant="ghost" key={r.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} onClick={() => onOpen(r)} whileTap={{ scale: 0.98 }} className="flex h-auto w-full items-center gap-3 whitespace-normal rounded-none px-0 py-4 text-left">
-          <Cover tag={r.tag} c={r.c} />
-          <div className="min-w-0 flex-1"><p className="text-[17px] font-extrabold">{r.tag}</p><p className="mt-1 text-xs text-muted-foreground">{r.place}</p><p className="mt-1 text-[11px] text-muted-foreground">생성 {r.time}</p><p className="mt-1.5 text-xs font-semibold text-primary"><Users className="mr-1 inline h-3 w-3" />{r.n}명 · {joinedRooms.some((joined) => joined.id === r.id) ? "대화 이어가기" : "참여하기"}</p></div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </MotionButton>)}
+      {view === "nearby" ? <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><MapPin className="h-3.5 w-3.5" />지금 상명대 미래백년관 근처</p> : <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">장소는 달라도, 이야기는 계속</p><select aria-label="참여한 장소" value={selectedPlace} onChange={(e) => setPlace(e.target.value)} className="max-w-[160px] min-w-0 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-semibold"><option>전체 장소</option>{places.map((p) => <option key={p}>{p}</option>)}</select></div>}
+      <div className="mt-3 space-y-2">
+        {rooms.map((r) => {
+          const joined = joinedRooms.some((entry) => entry.id === r.id);
+          return <RoomListItem key={r.id} label={`${r.tag} ${r.place}`} joined={joined} muted={!!mutedRooms[r.id]} onOpen={() => onOpen(r)} onLeave={() => setLeaving(r)} onMute={() => onMute(r.id)} onManage={() => setManage(r)}>
+            <Cover tag={r.tag} c={r.c} />
+            <div className="min-w-0 flex-1"><p className="flex items-center gap-2 text-[17px] font-extrabold">{r.tag}{mutedRooms[r.id] && <BellOff aria-label="알림 꺼짐" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}</p><p className="mt-1 text-xs text-muted-foreground">{r.place}</p><p className="mt-1 text-[11px] text-muted-foreground">생성 {r.time}</p><p className="mt-1.5 text-xs font-semibold text-primary"><Users className="mr-1 inline h-3 w-3" />{r.n}명 · {joined ? "대화 이어가기" : "참여하기"}</p></div>
+            {!joined && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          </RoomListItem>;
+        })}
+        {rooms.length === 0 && <div className="py-14 text-center"><p className="text-base font-bold">아직 남겨둔 이야기가 없어요</p><p className="mt-2 text-sm text-muted-foreground">가까운 방에서 첫 이야기를 시작해 볼까요?</p><Button variant="secondary" className="mt-5 rounded-xl" onClick={() => setView("nearby")}>주변 방 보기</Button></div>}
       </div>
+      <Sheet open={!!manage} onClose={() => setManage(null)}>
+        <h2 className="text-lg font-bold">{manage?.tag}</h2><p className="mt-1 text-xs text-muted-foreground">{manage?.place}</p>
+        <Button variant="ghost" className="mt-4 h-12 w-full justify-start gap-3 rounded-xl font-semibold" onClick={() => { if (manage) onMute(manage.id); setManage(null); }}>{manage && mutedRooms[manage.id] ? <Bell /> : <BellOff />}{manage && mutedRooms[manage.id] ? "알림 켜기" : "알림 끄기"}</Button>
+        <Button variant="ghost" className="h-12 w-full justify-start gap-3 rounded-xl font-semibold text-destructive" onClick={() => { setLeaving(manage); setManage(null); }}><LogOut />방 나가기</Button>
+      </Sheet>
+      <Sheet open={!!leaving} onClose={() => setLeaving(null)}>
+        <h2 className="text-lg font-bold">{leaving?.tag} 방에서 나갈까요?</h2><p className="mt-2 text-sm text-muted-foreground">참여한 방 목록에서 사라져요.</p>
+        <div className="mt-6 flex gap-2"><Button variant="secondary" className="h-12 flex-1 rounded-xl font-bold" onClick={() => setLeaving(null)}>취소</Button><Button variant="destructive" className="h-12 flex-1 rounded-xl font-bold" onClick={() => { if (leaving) onLeave(leaving.id); setLeaving(null); }}><LogOut className="h-4 w-4" />나가기</Button></div>
+      </Sheet>
     </div>
   );
 }
@@ -500,19 +542,18 @@ function ChatSettingsButton() {
 }
 
 function Settings({ verified, onVerify }: { verified: boolean; onVerify: () => void }) {
+  const { user, setNickname, blocked, reports, unblock } = useContext(IdentityContext);
+  const [editingNickname, setEditingNickname] = useState(false);
   const { avatar, setAvatar } = useContext(CharacterContext);
   const [editing, setEditing] = useState(false);
-  const [blocked, setBlocked] = useState(["새벽 코더", "시끄러운 오리"]);
-  const reports = [{ who: "시끄러운 오리", when: "11.19", st: "처리 완료" }, { who: "익명 여우", when: "11.12", st: "검토 중" }];
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
       <div className="mt-4 flex items-center gap-4">
         <Button variant="ghost" aria-label="내 캐릭터 꾸미기" onClick={() => setEditing(true)} className="h-20 w-20 shrink-0 rounded-full bg-primary-soft p-1"><Character avatar={avatar} className="h-full w-full" /></Button>
-        <div>
-          <p className="text-xs text-muted-foreground">닉네임</p>
-          <p className="text-2xl font-extrabold">느긋한 곰</p>
-        </div>
+        <div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">닉네임</p><p className="break-words text-xl font-extrabold">{user.nickname}</p></div>
+        <Button variant="secondary" size="icon" aria-label="닉네임 변경" className="h-10 w-10 shrink-0 rounded-full" onClick={() => setEditingNickname(true)}><Pencil className="h-4 w-4" /></Button>
       </div>
+      <Sheet open={editingNickname} onClose={() => setEditingNickname(false)}>{editingNickname && <NicknameEditor nickname={user.nickname} onClose={() => setEditingNickname(false)} onSave={(nickname) => { setNickname(nickname); setEditingNickname(false); }} />}</Sheet>
       <Button variant="secondary" className="mt-4 h-11 w-full rounded-xl" onClick={() => setEditing(true)}><User className="h-4 w-4" />캐릭터 꾸미기<ChevronRight className="ml-auto h-4 w-4" /></Button>
       <Sheet open={editing} onClose={() => setEditing(false)}>{editing && <CharacterEditor initial={avatar} onClose={() => setEditing(false)} onSave={(next) => { setAvatar(next); setEditing(false); }} />}</Sheet>
       {!verified && <Button variant="ghost" onClick={onVerify} className="mt-5 flex h-auto w-full items-center justify-between rounded-3xl border border-primary/40 bg-primary/10 p-4 text-sm font-bold text-primary">휴대폰 인증하기<ChevronRight className="h-4 w-4" /></Button>}
@@ -521,18 +562,19 @@ function Settings({ verified, onVerify }: { verified: boolean; onVerify: () => v
         {blocked.length === 0 && <div className="py-5 text-center"><span className="empty-illustration" aria-hidden="true">🕊️</span><p className="mt-2 text-sm font-bold">여긴 평화로운 구역</p><p className="mt-1 text-xs text-muted-foreground">차단한 사람이 없어요. 이대로 쭉!</p></div>}
         <AnimatePresence>
           {blocked.map((b) => (
-            <motion.div key={b} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-semibold">{b}</span>
-              <Button variant="ghost" onClick={() => setBlocked((l) => l.filter((x) => x !== b))} className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold">차단 해제</Button>
+            <motion.div key={b.userId} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between px-4 py-3.5">
+              <span className="font-semibold">{b.nickname}</span>
+              <Button variant="ghost" onClick={() => unblock(b.userId)} className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold">차단 해제</Button>
             </motion.div>
           ))}
         </AnimatePresence>
       </Section>
       <Section title="신고 내역">
+        {reports.length === 0 && <p className="px-4 py-3.5 text-sm text-muted-foreground">접수한 신고가 없어요</p>}
         {reports.map((r) => (
-          <div key={r.who} className="flex items-center justify-between px-4 py-3.5">
-            <span className="font-semibold">{r.who} <span className="text-xs text-muted-foreground">· {r.when}</span></span>
-            <span className={`text-xs font-bold ${r.st === "처리 완료" ? "text-primary" : "text-muted-foreground"}`}>{r.st}</span>
+          <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+            <div className="min-w-0"><p className="text-sm font-semibold">{r.nickname}</p><p className="mt-1 text-xs text-muted-foreground">{r.date}</p><p className="mt-1 truncate text-xs text-muted-foreground">{r.text}</p></div>
+            <span className="shrink-0 text-xs font-bold text-muted-foreground">{r.status}</span>
           </div>
         ))}
       </Section>

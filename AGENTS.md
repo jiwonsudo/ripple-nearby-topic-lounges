@@ -42,3 +42,6 @@ use the editor.
 - Character SVGs declare intrinsic dimensions, token-based paint attributes and their own peek clip so delayed CSS cannot produce oversized black silhouettes or leak torso geometry across messages.
 - Identify topic rooms by stable creation IDs and keep joined rooms plus per-room messages in app-level React state; creation metadata stays unchanged across re-entry and same-keyword rooms remain distinct.
 - Reply gestures use horizontal pointer intent while preserving vertical scrolling; sent replies retain an original-message reference and quoted snapshot for re-entry.
+- Keep prototype identity, moderation records and first-entry room nicknames in shared React state; immutable user IDs key messages, reports and blocks, while room nickname snapshots never follow later profile edits.
+- Validate nicknames through the browser-safe identity module and reuse its adjective-animal generator; the same validation gates manual and randomized saves.
+- Keep joined-room swipe handling in RoomListItem: left reveals a confirmed leave action, right reveals notification toggles, and vertical gestures remain scrolling; leaving removes membership but preserves first-entry nickname snapshots.

@@ -166,8 +166,8 @@
   --input: oklch(0.31 0.01 265);
   --ring: oklch(0.73 0.16 245);
   --desk: oklch(0.12 0.005 265);
-  --chat-own: oklch(0.88 0.21 128);
-  --chat-own-foreground: oklch(0.2 0.025 125);
+  --chat-own: var(--primary);
+  --chat-own-foreground: var(--primary-foreground);
   --chat-other: oklch(0.25 0.008 265);
   --radar-line: oklch(0.73 0.16 245 / 0.25);
   --radar-fill: oklch(0.73 0.16 245 / 0.045);
