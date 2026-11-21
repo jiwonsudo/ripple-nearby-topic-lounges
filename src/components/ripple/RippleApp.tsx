@@ -62,9 +62,7 @@ export function RippleApp() {
     <div className="flex min-h-screen items-center justify-center bg-desk sm:p-6">
       <div className="relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
         <div className="pointer-events-none absolute inset-0 glow-purple" />
-        <div className="relative z-10 flex h-11 items-center justify-between px-8 text-xs font-semibold">
-          <span>13:43</span><span>●●● 5G</span>
-        </div>
+        <div className="relative z-10 h-3" />
         <AnimatePresence mode="wait">
           <motion.div
             key={screen}
@@ -72,7 +70,7 @@ export function RippleApp() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.35, ease }}
-            className="absolute inset-x-0 bottom-0 top-11 z-10 flex flex-col"
+            className="absolute inset-x-0 bottom-0 top-3 z-10 flex flex-col"
           >
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
