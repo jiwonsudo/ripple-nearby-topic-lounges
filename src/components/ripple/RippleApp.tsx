@@ -150,7 +150,13 @@ function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; o
 function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
   const [sheet, setSheet] = useState(false);
   const count = 12;
-  const dots = [[-110, -40], [95, -95], [120, 60], [-70, 110], [30, 140], [-130, 50], [60, -150], [-40, -140], [140, -20], [-100, -110], [10, -80], [85, 115]];
+  const dots = Array.from({ length: 12 }, (_, i) => {
+    const inner = i < 5;
+    const ring = inner ? 80 : 130;
+    const total = inner ? 5 : 7;
+    const angle = ((inner ? i : i - 5) / total) * Math.PI * 2 + (inner ? 0.5 : 0.1);
+    return [Math.cos(angle) * ring, Math.sin(angle) * ring];
+  });
   const chips = [{ x: -95, y: -120 }, { x: 90, y: 30 }, { x: -70, y: 150 }].map((p, i) => ({ ...p, room: nearbyRooms[i]! }));
   return (
     <div className="relative flex min-h-0 flex-1 flex-col pb-28">
@@ -190,13 +196,7 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
           <span className="mt-2 text-sm font-bold">나</span>
         </div>
       </div>
-      <div className="space-y-3 px-5">
-        <div className="flex items-center gap-3 rounded-2xl bg-primary-soft px-4 py-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-            <motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: "70%" }} transition={{ duration: 1.2, ease }} />
-          </div>
-          <span className="text-xs font-semibold">2명 더 모이면 라운지가 열려요</span>
-        </div>
+      <div className="px-5">
         <PrimaryButton onClick={() => setSheet(true)}>지금 여기 사람들과 이야기하기</PrimaryButton>
       </div>
       <Sheet open={sheet} onClose={() => setSheet(false)}>
@@ -425,16 +425,16 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
         <p className="mt-2 text-sm text-muted-foreground">상대에게는 닉네임만 보여요</p>
         <div className="mt-8 flex gap-2">
           <input inputMode="numeric" value={phone} onChange={(e) => setPhone(fmt(e.target.value))} placeholder="010-0000-0000"
-            className="bg-secondary h-14 flex-1 rounded-2xl border border-transparent px-5 text-lg font-semibold outline-none focus:border-primary" />
-          <button disabled={phone.length < 12} onClick={() => setSent(true)} className="rounded-2xl bg-secondary px-4 text-sm font-bold disabled:opacity-40">{sent ? "재전송" : "인증번호"}</button>
+            className="bg-secondary h-14 min-w-0 flex-1 rounded-2xl border border-transparent px-5 text-lg font-semibold outline-none focus:border-primary" />
+          <button disabled={phone.length < 12} onClick={() => setSent(true)} className="shrink-0 rounded-2xl bg-secondary px-4 text-sm font-bold disabled:opacity-40">{sent ? "재전송" : "인증번호"}</button>
         </div>
         <AnimatePresence>
           {sent && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
               <p className="mb-2 text-xs font-semibold text-muted-foreground">인증번호 6자리 (아무 숫자나 입력)</p>
-              <div className="relative flex justify-between">
+              <div className="relative flex gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-2xl font-bold ${code.length === i ? "border-primary" : "border-border"} bg-secondary`}>{code[i] ?? ""}</div>
+                  <div key={i} className={`flex h-14 min-w-0 flex-1 items-center justify-center rounded-2xl border text-2xl font-bold ${code.length === i ? "border-primary" : "border-border"} bg-secondary`}>{code[i] ?? ""}</div>
                 ))}
                 <input autoFocus inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} className="absolute inset-0 opacity-0" aria-label="인증번호" />
               </div>

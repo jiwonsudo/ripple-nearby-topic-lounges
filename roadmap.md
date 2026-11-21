@@ -1,9 +1,5 @@
 # Roadmap
-- [x] Simplify to flat Spotify-style UI
-- [x] Vivid multi-color accents emphasizing diversity
-- [x] CTA opens nearby rooms list
-- [x] Past rooms enterable
-- [x] Animate nearby topic chips
-- [x] Fix overflow (verify unreachable)
-- [x] Emphasize "[장소] 리플 참여하기" in CTA sheet
-- [x] White theme, single wave accent, unified TDS-style components
+
+- [x] 인증 화면 입력창 밀림 수정 (코드 수정 완료, 시각 확인 중)
+- [x] 홈 화면 점들 규칙적 배치 (물결 원 따라 배치)
+- [ ] "2명 더 모이면 라운지가 열려요" 진행 바 제거 (이미 리플 열려 있어 불필요)
