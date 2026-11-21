@@ -13,6 +13,7 @@ uniform float uAspect;
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform vec3 uHighlight;
+uniform sampler2D uFloor;
 uniform vec3 uTouches[6];
 
 float ring(vec2 p, vec2 origin, float clock, float strength) {
@@ -55,19 +56,21 @@ void main() {
   float reflection = sin(q.x*5.0+q.y*3.0+uTime*0.16)*sin(q.y*6.0-q.x*2.0-uTime*0.12);
   float refractedLight = pow(0.5+0.5*sin(q.x*18.0+q.y*9.0+sin(q.y*13.0-uTime*0.25)*1.8),6.0);
   float depth = smoothstep(-0.6,0.7,p.y + h*3.0);
-  vec3 water = mix(uDeep,uShallow,depth*0.65+diffuse*0.2);
+  vec2 floorUv = vUv + slope*0.026 + vec2(sin(p.y*11.0+uTime*0.4), cos(p.x*10.0-uTime*0.3))*0.002;
+  vec3 floorColor = texture2D(uFloor,clamp(floorUv,0.001,0.999)).rgb;
+  vec3 water = mix(floorColor,mix(uDeep,uShallow,depth*0.65+diffuse*0.2),0.24);
   float curvature = (surface(p+vec2(0.009,0.0))+surface(p-vec2(0.009,0.0))+surface(p+vec2(0.0,0.009))+surface(p-vec2(0.0,0.009))-4.0*h)*160.0;
   water = mix(water,uDeep,clamp(curvature*0.45,0.0,0.14));
   water = mix(water,uShallow,clamp(-curvature*0.55,0.0,0.22));
   water = mix(water,uHighlight,broad*0.12+reflection*0.035);
-  water = mix(water,uHighlight,spec*0.6+softReflection*0.22+refractedLight*0.08);
+  water = mix(water,uHighlight,spec*0.32+softReflection*0.14+refractedLight*0.1);
   float fresnel = pow(1.0-normal.z,2.0);
   water = mix(water,uHighlight,fresnel*0.28);
   gl_FragColor = vec4(water,1.0);
 }
 `;
 
-export default function WaterSurface({ dark, active = true }: { dark: boolean; active?: boolean }) {
+export default function WaterSurface({ dark, active = true, count = 12 }: { dark: boolean; active?: boolean; count?: number }) {
   const host = useRef<HTMLDivElement>(null);
   const activeRef = useRef(active);
   const resume = useRef<(() => void) | null>(null);
@@ -93,10 +96,39 @@ export default function WaterSurface({ dark, active = true }: { dark: boolean; a
         const rgb = context.getImageData(0,0,1,1).data;
         return new THREE.Color().setRGB((rgb[0] ?? 0)/255,(rgb[1] ?? 0)/255,(rgb[2] ?? 0)/255);
       };
+      const floorCanvas = document.createElement("canvas");
+      const floorTexture = new THREE.CanvasTexture(floorCanvas);
+      floorTexture.minFilter = THREE.LinearFilter;
+      const paintFloor = () => {
+        const width = 780;
+        const height = Math.round(width * element.clientHeight / Math.max(element.clientWidth, 1));
+        floorCanvas.width = width; floorCanvas.height = height;
+        const ctx = floorCanvas.getContext("2d");
+        if (!ctx) return;
+        const paint = (token: string) => tokens.getPropertyValue(token).trim();
+        ctx.fillStyle = paint("--pool-floor"); ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = paint("--pool-grout"); ctx.lineWidth = 1.5;
+        const tile = 64;
+        ctx.beginPath();
+        for (let x = 0; x < width; x += tile) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
+        for (let y = 0; y < height; y += tile) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+        ctx.stroke();
+        const anchor = element.closest(".phone-shell")?.querySelector("[data-pool-floor-anchor]")?.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        const center = anchor ? (anchor.top - box.top) / Math.max(box.height, 1) * height : height * 0.53;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = paint("--pool-lettering");
+        ctx.font = '800 180px "Pretendard Variable", system-ui, sans-serif';
+        ctx.fillText(String(count), width / 2, center - 15);
+        ctx.font = '600 24px "Pretendard Variable", system-ui, sans-serif';
+        ctx.fillText("명 · 지금 이곳의 ripplers", width / 2, center + 105);
+        floorTexture.needsUpdate = true;
+      };
       const uniforms = {
         uTime: { value: 0 }, uAspect: { value: 1 },
         uDeep: { value: color("--water-deep") }, uShallow: { value: color("--water-shallow") }, uHighlight: { value: color("--water-highlight") },
         uTouches: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0,0,-10)) },
+        uFloor: { value: floorTexture },
       };
       const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
       const scene = new THREE.Scene();
@@ -106,6 +138,7 @@ export default function WaterSurface({ dark, active = true }: { dark: boolean; a
       const resize = () => {
         renderer.setSize(element.clientWidth, element.clientHeight);
         uniforms.uAspect.value = element.clientWidth / Math.max(element.clientHeight,1);
+        paintFloor();
       };
       const observer = new ResizeObserver(resize); observer.observe(element); resize();
       const clock = new THREE.Clock();
@@ -124,12 +157,19 @@ export default function WaterSurface({ dark, active = true }: { dark: boolean; a
         ripple.set(((event.clientX-box.left)/box.width-0.5)*box.width/box.height,0.5-(event.clientY-box.top)/box.height,uniforms.uTime.value);
         touchIndex = (touchIndex + 1) % uniforms.uTouches.value.length;
       };
-      resume.current = () => { cancelAnimationFrame(frame); if (activeRef.current) render(); };
+      resume.current = () => {
+        cancelAnimationFrame(frame);
+        if (activeRef.current) {
+          const stage = element.closest(".phone-shell")?.querySelector(".water-center");
+          if (stage) observer.observe(stage);
+          paintFloor(); render();
+        }
+      };
       element.addEventListener("pointerdown",touch); render();
       element.dataset['ready'] = "true";
-      dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
+      dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); floorTexture.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
     });
     return () => { cancelled = true; dispose?.(); };
-  }, [dark]);
-  return <div ref={host} className="water-surface absolute inset-0" role="img" aria-label="주변에서 퍼지는 실시간 물결" />;
+  }, [dark, count]);
+  return <div ref={host} className="water-surface absolute inset-0" role="img" aria-label={`${count}명이 새겨진 수영장 바닥 위로 일렁이는 물결`} />;
 }

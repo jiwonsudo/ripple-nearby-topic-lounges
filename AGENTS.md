@@ -33,6 +33,7 @@ use the editor.
 - Define theme, story-cover, motion, and chat typography roles in global CSS; chat size options live in the browser-safe appearance module for consistent settings and previews.
 - Map mock topic photos by keyword in a browser-safe module and reuse their CDN asset pointers across room covers, lists, and story previews; this keeps a topic's visual identity consistent.
 - Mount one Three.js water surface after hydration and pre-render it invisibly during permission without a frame loop; reuse that canvas on home entry, animate only on home, and dispose GPU resources on other screens to keep SSR safe and mobile rendering bounded.
+- Render the pool floor and count into a disposable canvas texture refracted by the existing water shader; overlay CSS-animated swimming poses using the chat's stable user IDs and shared self avatar, so identity stays consistent without another GPU scene or frame loop.
 - Use the origin-aware wave only for room entry; explicit room returns use a gentle directional crossfade even when the destination is a lounge, and reduced-motion users bypass the wave.
 - Portal sheets into the phone shell rather than animated screen layers so their backdrop and content stay above navigation without escaping the phone frame.
 - Keep avatar choices in typed browser-safe data with token-colored SVG rendering; a draft editor commits to shared React state so profile and chat use the same character without photos or backend storage.

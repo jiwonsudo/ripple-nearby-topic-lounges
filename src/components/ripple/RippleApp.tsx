@@ -13,6 +13,7 @@ import { Character } from "./Character";
 import { CharacterEditor } from "./CharacterEditor";
 import { NicknameEditor } from "./NicknameEditor";
 import { RoomListItem } from "./RoomListItem";
+import { SwimmingRipplers, nearbyRipplerCount } from "./SwimmingRipplers";
 import { blockUser, createReport, initialUser, rememberRoomNickname, visibleMessages, type BlockedUser, type ReportRecord, type UserIdentity } from "./identity";
 import { avatarForNickname, defaultAvatar, type Avatar } from "./avatar";
 
@@ -130,7 +131,7 @@ export function RippleApp() {
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
       <div ref={shell} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest("button"); const box = shell.current?.getBoundingClientRect(); if (button && box) { const target = button.getBoundingClientRect(); origin.current = { x: target.left-box.left+target.width/2, y: target.top-box.top+target.height/2 }; } }} data-chat-size={chatSize} className="phone-shell relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
-        {waterMounted && (screen === "permission" || screen === "home") && <div aria-hidden={screen !== "home"} className={`absolute inset-0 ${screen === "permission" ? "invisible" : ""}`}><Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} active={screen === "home"} /></Suspense></div>}
+        {waterMounted && (screen === "permission" || screen === "home") && <div aria-hidden={screen !== "home"} className={`absolute inset-0 ${screen === "permission" ? "invisible" : ""}`}><Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} active={screen === "home"} count={nearbyRipplerCount} /></Suspense></div>}
         <AnimatePresence mode="sync" custom={returning}>
           <motion.div
             key={screen}
@@ -228,6 +229,8 @@ function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; o
 function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
   const [sheet, setSheet] = useState(false);
   const { theme, setTheme } = useContext(AppearanceContext);
+  const { avatar } = useContext(CharacterContext);
+  const { user } = useContext(IdentityContext);
   return (
     <div className="water-home no-scrollbar pointer-events-none relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-28">
       <header className="water-content flex shrink-0 items-center justify-between px-6 pt-6">
@@ -235,10 +238,9 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
         <Button variant="secondary" size="icon" aria-label={theme === "light" ? "다크 모드 켜기" : "라이트 모드 켜기"} onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="h-10 w-10 rounded-full">{theme === "light" ? <Moon /> : <Sun />}</Button>
       </header>
       <div className="water-content mt-8 shrink-0 text-center"><p className="text-[23px] font-semibold leading-snug">지금, <span className="font-bold text-primary">같은 파동</span> 안에</p><p className="mt-2 text-xs text-muted-foreground">가까이 있는 사람들과 가볍게 이어져요</p></div>
-      <div className="water-center relative flex min-h-[240px] flex-1 items-center justify-center" aria-label="주변 ripplers 파동">
-          <div className="pointer-events-none flex flex-col items-center justify-center">
-            <p className="water-count text-[72px] font-semibold tabular-nums leading-none text-foreground">12<span className="ml-1 text-base font-medium text-muted-foreground">명</span></p><p className="mt-3 text-xs font-medium text-muted-foreground">지금 이곳의 ripplers</p>
-          </div>
+      <div className="water-center relative flex min-h-[300px] flex-1 items-center justify-center" aria-label={`지금 이곳의 ripplers ${nearbyRipplerCount}명`}>
+          <span data-pool-floor-anchor className="absolute left-1/2 top-1/2 h-px w-px" aria-hidden="true" />
+          <SwimmingRipplers avatar={avatar} nickname={user.nickname} userId={user.id} />
       </div>
       <div className="water-content shrink-0 px-5 text-center"><p className="mb-4 text-xs font-medium text-muted-foreground"><span className="live-dot mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary" />미래백년관 리플에서 대화 중</p><PrimaryButton onClick={() => setSheet(true)}>미래백년관 리플 참여하기 <ArrowUpRight className="h-4 w-4" /></PrimaryButton></div>
       <Sheet open={sheet} onClose={() => setSheet(false)}>
