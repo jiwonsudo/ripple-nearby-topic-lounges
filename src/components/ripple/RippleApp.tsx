@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ChevronRight, Clock, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export function RippleApp() {
   const [wave, setWave] = useState<{ x: number; y: number; radius: number; next: Screen; phase: "expand" | "reveal" } | null>(null);
   const setScreen = (next: Screen) => {
     if (navigating.current || next === screen) return;
+    if (next !== "lounge" && next !== "room") { setRawScreen(next); return; }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setRawScreen(next); return; }
     const box = shell.current?.getBoundingClientRect();
     if (!box) { setRawScreen(next); return; }
@@ -92,15 +94,14 @@ export function RippleApp() {
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
       <div ref={shell} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest("button"); const box = shell.current?.getBoundingClientRect(); if (button && box) { const target = button.getBoundingClientRect(); origin.current = { x: target.left-box.left+target.width/2, y: target.top-box.top+target.height/2 }; } }} data-chat-size={chatSize} className="phone-shell relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
-        <div className="relative z-10 h-3" />
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
           <motion.div
             key={screen}
-            initial={{ opacity: 0, y: 18, filter: "blur(3px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -8, filter: "blur(2px)" }}
-            transition={{ duration: 0.22, ease }}
-            className="absolute inset-x-0 bottom-0 top-3 z-10 flex flex-col"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease }}
+            className="absolute inset-0 z-10 flex flex-col"
           >
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
@@ -112,7 +113,7 @@ export function RippleApp() {
           </motion.div>
         </AnimatePresence>
         {tab && <TabBar tab={tab} go={setScreen} />}
-        {wave && <motion.div data-testid="navigation-wave" key={`${wave.next}-${wave.phase}`} className="absolute inset-0 z-50 overflow-hidden bg-primary" initial={wave.phase === "expand" ? { clipPath: `circle(0px at ${wave.x}px ${wave.y}px)`, opacity: 1 } : { opacity: 1 }} animate={wave.phase === "expand" ? { clipPath: `circle(${wave.radius}px at ${wave.x}px ${wave.y}px)` } : { opacity: 0 }} transition={wave.phase === "expand" ? { duration: 0.48, ease: [0.32,0,0.22,1] } : { duration: 0.28, delay: 0.45 }} onAnimationComplete={() => { if (wave.phase === "expand") { setRawScreen(wave.next); setWave({ ...wave, phase: "reveal" }); } else { setWave(null); navigating.current = false; } }}><div className="absolute inset-0 ripple-pattern" /></motion.div>}
+        {wave && <motion.div data-testid="navigation-wave" key={`${wave.next}-${wave.phase}`} className="navigation-wave absolute inset-0 z-50 overflow-hidden bg-primary" initial={wave.phase === "expand" ? { clipPath: `circle(0px at ${wave.x}px ${wave.y}px)`, opacity: 0.6 } : { opacity: 1 }} animate={wave.phase === "expand" ? { clipPath: `circle(${wave.radius}px at ${wave.x}px ${wave.y}px)`, opacity: 1 } : { opacity: 0 }} transition={wave.phase === "expand" ? { duration: 0.36, ease: [0.25,0.1,0.25,1] } : { duration: 0.22, delay: 0.14, ease: "easeOut" }} onAnimationComplete={() => { if (wave.phase === "expand") { setRawScreen(wave.next); setWave({ ...wave, phase: "reveal" }); } else { setWave(null); navigating.current = false; } }} />}
       </div>
     </div>
     </MotionConfig>
@@ -186,17 +187,17 @@ function HomeScreen({ onOpen }: { onOpen: (t: Target) => void }) {
   return (
     <div className="water-home no-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-28">
       <Suspense fallback={<div className="water-surface absolute inset-0" />}><WaterSurface dark={theme === "dark"} /></Suspense>
-      <header className="flex shrink-0 items-center justify-between px-6 pt-3">
+      <header className="water-content flex shrink-0 items-center justify-between px-6 pt-6">
         <div><h1><RippleLogo /></h1><p className="mt-1 flex items-center gap-1 text-xs font-medium text-muted-foreground"><MapPin className="h-3 w-3" />상명대 미래백년관</p></div>
         <Button variant="secondary" size="icon" aria-label={theme === "light" ? "다크 모드 켜기" : "라이트 모드 켜기"} onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="h-10 w-10 rounded-full">{theme === "light" ? <Moon /> : <Sun />}</Button>
       </header>
-      <div className="mt-8 shrink-0 text-center"><p className="text-[24px] font-extrabold">지금, 같은 파동 안에</p><p className="mt-2 text-xs text-muted-foreground">가까이 있는 사람들과 가볍게 이어져요</p></div>
+      <div className="water-content mt-8 shrink-0 text-center"><p className="text-[23px] font-semibold leading-snug">지금, <span className="font-bold text-primary">같은 파동</span> 안에</p><p className="mt-2 text-xs text-muted-foreground">가까이 있는 사람들과 가볍게 이어져요</p></div>
       <div className="water-center relative flex min-h-[240px] flex-1 items-center justify-center" aria-label="주변 ripplers 파동">
           <div className="pointer-events-none flex flex-col items-center justify-center">
-            <p className="water-count text-[64px] font-black leading-none text-foreground">12<span className="ml-1 text-lg">명</span></p><p className="mt-3 text-xs font-semibold text-foreground">지금 이곳의 ripplers</p>
+            <p className="water-count text-[72px] font-semibold tabular-nums leading-none text-foreground">12<span className="ml-1 text-base font-medium text-muted-foreground">명</span></p><p className="mt-3 text-xs font-medium text-muted-foreground">지금 이곳의 ripplers</p>
           </div>
       </div>
-      <div className="shrink-0 px-5 text-center"><p className="mb-4 text-xs font-medium text-muted-foreground"><span className="live-dot mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary" />미래백년관 리플에서 대화 중</p><PrimaryButton onClick={() => setSheet(true)}>미래백년관 리플 참여하기 <ArrowUpRight className="h-4 w-4" /></PrimaryButton></div>
+      <div className="water-content shrink-0 px-5 text-center"><p className="mb-4 text-xs font-medium text-muted-foreground"><span className="live-dot mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary" />미래백년관 리플에서 대화 중</p><PrimaryButton onClick={() => setSheet(true)}>미래백년관 리플 참여하기 <ArrowUpRight className="h-4 w-4" /></PrimaryButton></div>
       <Sheet open={sheet} onClose={() => setSheet(false)}>
         <MotionButton variant="ghost" whileTap={{ scale: 0.98 }} onClick={() => onOpen({ kind: "lounge" })} className="cover-2 relative h-auto w-full overflow-hidden rounded-2xl p-6 text-left text-story-foreground"><div className="absolute inset-0 ripple-pattern" /><div className="relative w-full"><p className="text-xs font-semibold opacity-80">지금 이곳 · ripplers 12명</p><p className="mt-2 text-[26px] font-extrabold leading-tight">미래백년관<br />리플 참여하기</p><span className="mt-5 inline-flex items-center gap-1 rounded-full bg-background px-4 py-2 text-sm font-bold text-primary">바로 들어가기 <ChevronRight className="h-4 w-4" /></span></div></MotionButton>
         <p className="mb-2 mt-5 text-xs font-bold text-muted-foreground">주변 토픽방</p>
@@ -269,19 +270,22 @@ function InputBar({ text, setText, send }: { text: string; setText: (s: string) 
 }
 
 function Sheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
-  return (
+  const [container, setContainer] = useState<Element | null>(null);
+  useEffect(() => { setContainer(document.querySelector(".phone-shell")); }, []);
+  if (!container) return null;
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
-          <motion.div className="absolute inset-0 z-30 bg-background/70" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="no-scrollbar absolute inset-x-0 bottom-0 z-40 max-h-[90%] overflow-y-auto rounded-t-[28px] border-t border-border bg-popover px-5 pb-10 pt-3"
-            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }}>
+          <motion.div className="sheet-backdrop absolute inset-0 z-30 bg-foreground/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} onClick={onClose} />
+          <motion.div role="dialog" aria-label="리플 선택 및 설정" aria-modal="true" className="no-scrollbar absolute inset-x-0 bottom-0 z-40 max-h-[90%] overflow-y-auto rounded-t-[28px] border-t border-border bg-popover px-5 pb-8 pt-3"
+            initial={{ y: "100%", opacity: 0.8 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ duration: 0.22, ease }}>
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted" />
             {children}
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>, container
   );
 }
 

@@ -13,15 +13,14 @@ uniform float uAspect;
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform vec3 uHighlight;
-uniform vec2 uTouch;
-uniform float uTouchTime;
+uniform vec3 uTouches[6];
 
 float ring(vec2 p, vec2 origin, float clock, float strength) {
   float d = length(p - origin);
   float age = mod(clock, 6.5);
   float front = age * 0.13;
-  float envelope = exp(-pow((d-front)*13.0,2.0)) * exp(-age*0.34);
-  return sin(d*75.0-age*9.5) * envelope * strength;
+  float envelope = exp(-pow((d-front)*10.0,2.0)) * exp(-age*0.34) * smoothstep(0.0,0.45,age) * (1.0-smoothstep(5.5,6.5,age));
+  return sin(d*48.0-age*6.2) * envelope * strength;
 }
 float surface(vec2 p) {
   float t = uTime;
@@ -31,10 +30,12 @@ float surface(vec2 p) {
   w += ring(p, vec2(0.0,0.0), t+2.3, 0.012);
   w += ring(p, vec2(-0.29,0.24), t+0.8, 0.009);
   w += ring(p, vec2(0.3,-0.19), t+4.1, 0.01);
-  float age = t-uTouchTime;
-  float d = length(p-uTouch);
-  if (age >= 0.0 && age < 4.0) {
-    w += sin(d*90.0-age*12.0)*exp(-pow((d-age*0.19)*12.0,2.0))*exp(-age*0.75)*0.022;
+  for (int i = 0; i < 6; i++) {
+    float age = t-uTouches[i].z;
+    float d = length(p-uTouches[i].xy);
+    if (age >= 0.0 && age < 6.0) {
+      w += sin(d*52.0-age*9.0)*exp(-pow((d-age*0.16)*10.0,2.0))*exp(-age*0.6)*smoothstep(0.0,0.15,age)*0.009;
+    }
   }
   return w;
 }
@@ -43,21 +44,25 @@ void main() {
   float e = 0.002;
   float h = surface(p);
   vec2 slope = vec2(surface(p+vec2(e,0.0))-surface(p-vec2(e,0.0)),surface(p+vec2(0.0,e))-surface(p-vec2(0.0,e)))/(2.0*e);
-  vec3 normal = normalize(vec3(-slope*0.48,1.0));
+  vec3 normal = normalize(vec3(-slope*0.7,1.0));
   vec3 light = normalize(vec3(-0.5,0.65,1.2));
   float diffuse = max(dot(normal,light),0.0);
-  float spec = pow(max(dot(reflect(-light,normal),vec3(0.0,0.0,1.0)),0.0),38.0);
+  float spec = pow(max(dot(reflect(-light,normal),vec3(0.0,0.0,1.0)),0.0),24.0);
+  vec3 windowLight = normalize(vec3(0.3,-0.2,1.4));
+  float softReflection = pow(max(dot(reflect(-windowLight,normal),vec3(0.0,0.0,1.0)),0.0),12.0);
   float broad = pow(max(dot(normal,normalize(vec3(0.25,0.3,1.0))),0.0),8.0);
-  vec2 q = p + slope*0.06;
-  float c1 = sin(q.x*32.0+sin(q.y*21.0+uTime*0.22)*2.4);
-  float c2 = sin(q.y*34.0+sin(q.x*24.0-uTime*0.18)*2.4);
-  float caustic = pow(abs(c1*c2),7.0);
+  vec2 q = p + slope*0.025;
+  float reflection = sin(q.x*5.0+q.y*3.0+uTime*0.16)*sin(q.y*6.0-q.x*2.0-uTime*0.12);
+  float refractedLight = pow(0.5+0.5*sin(q.x*18.0+q.y*9.0+sin(q.y*13.0-uTime*0.25)*1.8),6.0);
   float depth = smoothstep(-0.6,0.7,p.y + h*3.0);
   vec3 water = mix(uDeep,uShallow,depth*0.65+diffuse*0.2);
-  water = mix(water,uHighlight,caustic*0.17+broad*0.16);
-  water += uHighlight*spec*0.48;
+  float curvature = (surface(p+vec2(0.009,0.0))+surface(p-vec2(0.009,0.0))+surface(p+vec2(0.0,0.009))+surface(p-vec2(0.0,0.009))-4.0*h)*160.0;
+  water = mix(water,uDeep,clamp(curvature*0.45,0.0,0.14));
+  water = mix(water,uShallow,clamp(-curvature*0.55,0.0,0.22));
+  water = mix(water,uHighlight,broad*0.12+reflection*0.035);
+  water = mix(water,uHighlight,spec*0.6+softReflection*0.22+refractedLight*0.08);
   float fresnel = pow(1.0-normal.z,2.0);
-  water = mix(water,uHighlight,fresnel*0.4);
+  water = mix(water,uHighlight,fresnel*0.28);
   gl_FragColor = vec4(water,1.0);
 }
 `;
@@ -88,7 +93,7 @@ export default function WaterSurface({ dark }: { dark: boolean }) {
       const uniforms = {
         uTime: { value: 0 }, uAspect: { value: 1 },
         uDeep: { value: color("--water-deep") }, uShallow: { value: color("--water-shallow") }, uHighlight: { value: color("--water-highlight") },
-        uTouch: { value: new THREE.Vector2(0,0) }, uTouchTime: { value: -10 },
+        uTouches: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0,0,-10)) },
       };
       const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
       const scene = new THREE.Scene();
@@ -108,10 +113,13 @@ export default function WaterSurface({ dark }: { dark: boolean }) {
         renderer.render(scene,camera);
         if (!reduced) frame = requestAnimationFrame(render);
       };
+      let touchIndex = 0;
       const touch = (event: PointerEvent) => {
         const box = element.getBoundingClientRect();
-        uniforms.uTouch.value.set(((event.clientX-box.left)/box.width-0.5)*box.width/box.height,0.5-(event.clientY-box.top)/box.height);
-        uniforms.uTouchTime.value = clock.getElapsedTime();
+        const ripple = uniforms.uTouches.value[touchIndex];
+        if (!ripple || reduced) return;
+        ripple.set(((event.clientX-box.left)/box.width-0.5)*box.width/box.height,0.5-(event.clientY-box.top)/box.height,uniforms.uTime.value);
+        touchIndex = (touchIndex + 1) % uniforms.uTouches.value.length;
       };
       element.addEventListener("pointerdown",touch); render();
       dispose = () => { cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); };

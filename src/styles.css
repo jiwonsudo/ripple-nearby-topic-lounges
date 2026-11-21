@@ -181,6 +181,7 @@
 .ripple-pattern { background-image: repeating-radial-gradient(ellipse at 100% 0%, var(--wave-ink) 0 2px, transparent 2px 30px); }
 .ripple-app { letter-spacing: 0; }
 .phone-shell { isolation: isolate; }
+.navigation-wave { will-change: clip-path, opacity; }
 .ripple-app button { cursor: pointer; }
 .ripple-app button:active { transition-duration: 80ms; }
 .radar-area { min-height: 300px; flex-shrink: 0; }
@@ -195,9 +196,8 @@
 .story-photo-shade { background: var(--story-photo-shade); }
 .water-surface { background: var(--water-shallow); overflow: hidden; }
 .water-surface canvas { width: 100%; height: 100%; display: block; }
-.water-home > header, .water-home > div:not(.water-surface), .water-home > p { position: relative; }
-.water-home > header, .water-home > div:not(.water-surface):not(.water-center) { pointer-events: none; }
-.water-home button, .water-home input { pointer-events: auto; }
+.water-content { position: relative; pointer-events: none; }
+.water-content button, .water-content input { pointer-events: auto; }
 .water-center { pointer-events: none; }
 .water-count { text-shadow: var(--water-count-shadow); }
 .live-dot { animation: live-pulse 2.4s ease-in-out infinite; }
