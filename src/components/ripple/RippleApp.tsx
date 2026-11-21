@@ -1,16 +1,20 @@
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { ArrowLeft, ChevronRight, Clock, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { chatSizes, defaultAppearance, type ChatSize, type ThemeMode } from "./appearance";
 import { topicImages } from "./topic-images";
 import { RippleLogo } from "./RippleLogo";
+import { Character } from "./Character";
+import { CharacterEditor } from "./CharacterEditor";
+import { avatarForNickname, defaultAvatar, type Avatar } from "./avatar";
 
 const WaterSurface = lazy(() => import("./WaterSurface"));
 
 const MotionButton = motion.create(Button);
+const CharacterContext = createContext({ avatar: defaultAvatar, setAvatar: (_value: Avatar) => {} });
 const AppearanceContext = createContext({
   theme: defaultAppearance.theme,
   chatSize: defaultAppearance.chatSize,
@@ -63,12 +67,27 @@ const pastRooms = [
 ];
 
 export function RippleApp() {
-  const [theme, setTheme] = useState<ThemeMode>(defaultAppearance.theme);
+  const [avatar, setAvatar] = useState<Avatar>({ ...defaultAvatar });
+  const [theme, setRawTheme] = useState<ThemeMode>(defaultAppearance.theme);
   const [chatSize, setChatSize] = useState<ChatSize>(defaultAppearance.chatSize);
   const [screen, setRawScreen] = useState<Screen>("permission");
   const shell = useRef<HTMLDivElement>(null);
   const origin = useRef({ x: 195, y: 420 });
   const navigating = useRef(false);
+  const changingTheme = useRef(false);
+  const setTheme = (next: ThemeMode) => {
+    if (next === theme || changingTheme.current) return;
+    if (!document.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setRawTheme(next); return; }
+    const box = shell.current?.getBoundingClientRect();
+    const x = (box?.left ?? 0) + origin.current.x;
+    const y = (box?.top ?? 0) + origin.current.y;
+    const radius = Math.hypot(Math.max(x, window.innerWidth-x), Math.max(y, window.innerHeight-y));
+    changingTheme.current = true;
+    const transition = document.startViewTransition(() => { flushSync(() => setRawTheme(next)); });
+    void transition.ready.then(() => {
+      document.documentElement.animate({ clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] }, { duration: 480, easing: "cubic-bezier(0.25,0.1,0.25,1)", fill: "both", pseudoElement: "::view-transition-new(root)" });
+    }).catch(() => {}).finally(() => { void transition.finished.catch(() => {}).finally(() => { changingTheme.current = false; }); });
+  };
   const [returning, setReturning] = useState(false);
   const [wave, setWave] = useState<{ x: number; y: number; radius: number; next: Screen; phase: "expand" | "reveal" } | null>(null);
   const setScreen = (next: Screen, isReturn = false) => {
@@ -92,6 +111,7 @@ export function RippleApp() {
   const tab = screen === "past" ? "past" : screen === "settings" ? "settings" : screen === "home" ? "home" : null;
 
   return (
+    <CharacterContext.Provider value={{ avatar, setAvatar }}>
     <AppearanceContext.Provider value={{ theme, chatSize, setTheme, setChatSize }}>
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
@@ -122,6 +142,7 @@ export function RippleApp() {
     </div>
     </MotionConfig>
     </AppearanceContext.Provider>
+    </CharacterContext.Provider>
   );
 }
 
@@ -159,8 +180,9 @@ function Permission({ onAllow }: { onAllow: () => void }) {
   return (
     <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-10">
       <div className="relative mt-6 h-56 shrink-0">
-        <Ripples size={240} count={4} period={1.2} />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"><RippleLogo large /></div>
+        <div className="absolute inset-x-0 top-[calc(50%+18px)] scale-y-[0.45]"><Ripples size={240} count={4} period={1.2} /></div>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"><RippleLogo large symbolOnly /></div>
+        <p className="absolute inset-x-0 bottom-0 text-center text-[32px] font-bold">Ripple</p>
       </div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 text-[30px] font-extrabold leading-tight tracking-normal">
         지금 여기 있는<br />사람들과 이어지려면
@@ -236,6 +258,7 @@ function useChat(seed: Msg[]) {
 }
 
 function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void; bot?: ReactNode }) {
+  const { avatar } = useContext(CharacterContext);
   const end = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length]);
@@ -245,8 +268,8 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
     <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
       {msgs.map((m, i) => m.bot ? <div key="bot">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
-          className={`flex gap-2 ${m.me ? "justify-end" : ""}`}>
-          {!m.me && <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-lg`}>{m.emoji}</div>}
+          className={`flex items-start gap-0 ${m.me ? "justify-end" : ""}`}>
+          <div className={`chat-character pointer-events-none relative mt-2 h-[66px] w-[58px] shrink-0 ${m.me ? "order-2 -ml-2" : "-mr-2"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
           <div className={`max-w-[72%] ${m.me ? "items-end" : ""} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
@@ -460,17 +483,21 @@ function ChatSettingsButton() {
 }
 
 function Settings({ verified, onVerify }: { verified: boolean; onVerify: () => void }) {
+  const { avatar, setAvatar } = useContext(CharacterContext);
+  const [editing, setEditing] = useState(false);
   const [blocked, setBlocked] = useState(["새벽 코더", "시끄러운 오리"]);
   const reports = [{ who: "시끄러운 오리", when: "11.19", st: "처리 완료" }, { who: "익명 여우", when: "11.12", st: "검토 중" }];
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
       <div className="mt-4 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-3xl">🐻</div>
+        <Button variant="ghost" aria-label="내 캐릭터 꾸미기" onClick={() => setEditing(true)} className="h-20 w-20 shrink-0 rounded-full bg-primary-soft p-1"><Character avatar={avatar} className="h-full w-full" /></Button>
         <div>
           <p className="text-xs text-muted-foreground">닉네임</p>
           <p className="text-2xl font-extrabold">느긋한 곰</p>
         </div>
       </div>
+      <Button variant="secondary" className="mt-4 h-11 w-full rounded-xl" onClick={() => setEditing(true)}><User className="h-4 w-4" />캐릭터 꾸미기<ChevronRight className="ml-auto h-4 w-4" /></Button>
+      <Sheet open={editing} onClose={() => setEditing(false)}>{editing && <CharacterEditor initial={avatar} onClose={() => setEditing(false)} onSave={(next) => { setAvatar(next); setEditing(false); }} />}</Sheet>
       {!verified && <Button variant="ghost" onClick={onVerify} className="mt-5 flex h-auto w-full items-center justify-between rounded-3xl border border-primary/40 bg-primary/10 p-4 text-sm font-bold text-primary">휴대폰 인증하기<ChevronRight className="h-4 w-4" /></Button>}
       <AppearanceControls />
       <Section title={`차단한 사용자 ${blocked.length}`}>

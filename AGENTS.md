@@ -35,3 +35,5 @@ use the editor.
 - Load the Three.js water renderer only after mounting; animate a token-colored full-bleed shader and dispose GPU resources on navigation to keep SSR safe and mobile rendering bounded.
 - Use the origin-aware wave only for room entry; explicit room returns use a gentle directional crossfade even when the destination is a lounge, and reduced-motion users bypass the wave.
 - Portal sheets into the phone shell rather than animated screen layers so their backdrop and content stay above navigation without escaping the phone frame.
+- Keep avatar choices in typed browser-safe data with token-colored SVG rendering; a draft editor commits to shared React state so profile and chat use the same character without photos or backend storage.
+- Use browser View Transitions for theme changes with a button-origin circular reveal of the fully recolored screen; unsupported browsers and reduced-motion preferences change theme directly.

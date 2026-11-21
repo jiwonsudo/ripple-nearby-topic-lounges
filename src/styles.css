@@ -11,6 +11,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+
 /*
  * Design system definition.
  *
@@ -126,6 +130,20 @@
   --water-shallow: oklch(0.97 0.013 230);
   --water-highlight: oklch(1 0 0);
   --water-count-shadow: 0 2px 18px oklch(1 0 0 / 0.7);
+  --avatar-ink: oklch(0.24 0.02 265);
+  --avatar-white: oklch(0.99 0 0);
+  --avatar-cocoa: oklch(0.37 0.065 50);
+  --avatar-gold: oklch(0.79 0.14 80);
+  --avatar-blue: oklch(0.62 0.2 255);
+  --avatar-rose: oklch(0.76 0.15 355);
+  --avatar-mint: oklch(0.76 0.13 170);
+  --avatar-lemon: oklch(0.88 0.16 95);
+  --avatar-porcelain: oklch(0.94 0.035 65);
+  --avatar-peach: oklch(0.87 0.07 55);
+  --avatar-warm: oklch(0.79 0.09 62);
+  --avatar-tan: oklch(0.67 0.1 55);
+  --avatar-deep: oklch(0.52 0.085 48);
+  --avatar-espresso: oklch(0.4 0.06 45);
 }
 
 .dark {
@@ -181,6 +199,44 @@
 .ripple-pattern { background-image: repeating-radial-gradient(ellipse at 100% 0%, var(--wave-ink) 0 2px, transparent 2px 30px); }
 .ripple-app { letter-spacing: 0; }
 .phone-shell { isolation: isolate; }
+.character { --character-skin: var(--avatar-warm); --character-hair: var(--avatar-cocoa); --character-clothes: var(--avatar-blue); overflow: visible; }
+.character[data-skin="porcelain"] { --character-skin: var(--avatar-porcelain); }
+.character[data-skin="peach"] { --character-skin: var(--avatar-peach); }
+.character[data-skin="tan"] { --character-skin: var(--avatar-tan); }
+.character[data-skin="deep"] { --character-skin: var(--avatar-deep); }
+.character[data-skin="espresso"] { --character-skin: var(--avatar-espresso); }
+.character[data-hair="ink"] { --character-hair: var(--avatar-ink); }
+.character[data-hair="gold"] { --character-hair: var(--avatar-gold); }
+.character[data-hair="blue"] { --character-hair: var(--avatar-blue); }
+.character[data-hair="rose"] { --character-hair: var(--avatar-rose); }
+.character[data-clothes="mint"] { --character-clothes: var(--avatar-mint); }
+.character[data-clothes="lemon"] { --character-clothes: var(--avatar-lemon); }
+.character[data-clothes="rose"] { --character-clothes: var(--avatar-rose); }
+.character[data-clothes="ink"] { --character-clothes: var(--avatar-ink); }
+.character-skin { fill: var(--character-skin); }
+.character-hair { fill: var(--character-hair); }
+.character-clothes { fill: var(--character-clothes); }
+.character-ink { fill: var(--avatar-ink); }
+.character-ink-stroke { stroke: var(--avatar-ink); }
+.character-nose { stroke: color-mix(in oklch, var(--character-skin), var(--avatar-ink) 24%); }
+.character-nose-fill { fill: color-mix(in oklch, var(--character-skin), var(--avatar-ink) 24%); }
+.character-trim { stroke: var(--avatar-white); }
+.character-trim-fill { fill: var(--avatar-white); }
+.character-seam { stroke: color-mix(in oklch, var(--character-clothes), var(--avatar-ink) 20%); }
+.character-preview-rings { position: absolute; width: 185px; height: 185px; border: 1px solid var(--primary); opacity: 0.12; border-radius: 50%; box-shadow: 0 0 0 30px var(--primary-soft); }
+.character-swatch { background: var(--avatar-ink); border: 1px solid var(--border); }
+.character-swatch[data-tone="cocoa"] { background: var(--avatar-cocoa); }
+.character-swatch[data-tone="gold"] { background: var(--avatar-gold); }
+.character-swatch[data-tone="blue"] { background: var(--avatar-blue); }
+.character-swatch[data-tone="rose"] { background: var(--avatar-rose); }
+.character-swatch[data-tone="mint"] { background: var(--avatar-mint); }
+.character-swatch[data-tone="lemon"] { background: var(--avatar-lemon); }
+.character-swatch[data-tone="porcelain"] { background: var(--avatar-porcelain); }
+.character-swatch[data-tone="peach"] { background: var(--avatar-peach); }
+.character-swatch[data-tone="warm"] { background: var(--avatar-warm); }
+.character-swatch[data-tone="tan"] { background: var(--avatar-tan); }
+.character-swatch[data-tone="deep"] { background: var(--avatar-deep); }
+.character-swatch[data-tone="espresso"] { background: var(--avatar-espresso); }
 .navigation-wave { will-change: clip-path, opacity; }
 .ripple-app button { cursor: pointer; }
 .ripple-app button:active { transition-duration: 80ms; }
