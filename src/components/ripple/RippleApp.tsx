@@ -265,12 +265,12 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
   const start = (m: Msg) => { if (m.me) return; timer.current = setTimeout(() => onLong(m), 450); };
   const cancel = () => { if (timer.current) clearTimeout(timer.current); };
   return (
-    <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-      {msgs.map((m, i) => m.bot ? <div key="bot">{bot}</div> : (
+    <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
+      {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
-          className={`flex items-start gap-0 ${m.me ? "justify-end" : ""}`}>
-          <div className={`chat-character pointer-events-none relative mt-2 h-[66px] w-[58px] shrink-0 ${m.me ? "order-2 -ml-2" : "-mr-2"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
-          <div className={`max-w-[72%] ${m.me ? "items-end" : ""} flex flex-col`}>
+          className={`chat-row relative flex min-h-[92px] items-start ${m.me ? "justify-end" : ""}`}>
+          <div className={`chat-character pointer-events-none absolute top-0 h-[92px] w-[84px] ${m.me ? "-right-8" : "-left-8"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
+          <div className={`min-w-0 max-w-[calc(100%-92px)] ${m.me ? "ml-5 mr-[72px] items-end" : "ml-[72px] mr-5"} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
               className={`chat-message select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>
@@ -361,8 +361,8 @@ function Cover({ tag, c = "cover-1", big }: { tag: string; c?: string; big?: boo
   const image = topicImages[tag];
   return (
     <div className={`${c} relative overflow-hidden ${big ? "h-full w-full" : "h-16 w-16 shrink-0 rounded-2xl"}`}>
-      {image ? <><img src={image.url} alt={image.alt} className="absolute inset-0 h-full w-full object-cover" /><div className="story-photo-shade absolute inset-0" /></> : <div className="absolute inset-0 ripple-pattern" />}
-      <span className={`absolute bottom-2 left-2 font-black tracking-normal text-story-foreground ${big ? "bottom-4 left-4 text-4xl" : "text-[11px]"}`}>{tag}</span>
+      {image ? <><img src={image.url} alt={image.alt} className="absolute inset-0 h-full w-full object-cover" />{big && <div className="story-photo-shade absolute inset-0" />}</> : <div className="absolute inset-0 ripple-pattern" />}
+      {big && <span className="absolute bottom-4 left-4 text-4xl font-black tracking-normal text-story-foreground">{tag}</span>}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { chatPeekDegrees, type Avatar } from "./avatar";
 
 export function Character({ avatar, className = "", label = "내 캐릭터", peek }: { avatar: Avatar; className?: string; label?: string; peek?: "left" | "right" }) {
   const body = avatar.body === "slim" ? "M39 91Q60 81 81 91L88 128H32Z" : avatar.body === "broad" ? "M24 97Q60 78 96 97L106 128H14Z" : "M30 97Q60 80 90 97Q103 109 98 128H22Q17 109 30 97Z";
-  return <svg viewBox={peek ? "-30 -20 180 170" : "0 0 120 132"} role="img" aria-label={label} className={`character ${className}`} data-skin={avatar.skin} data-hair={avatar.hairColor} data-clothes={avatar.clothes}>
+  return <svg viewBox="0 0 120 132" role="img" aria-label={label} className={`character ${className}`} data-skin={avatar.skin} data-hair={avatar.hairColor} data-clothes={avatar.clothes}>
     <g transform={peek ? `rotate(${peek === "right" ? chatPeekDegrees : -chatPeekDegrees} 60 110)` : undefined}>
     {avatar.hair === "bun" && <circle cx="60" cy="19" r="17" className="character-hair" />}
     {avatar.hair === "bob" && <path d="M23 49Q20 11 60 11Q100 11 97 49L100 87Q60 98 20 87Z" className="character-hair" />}
