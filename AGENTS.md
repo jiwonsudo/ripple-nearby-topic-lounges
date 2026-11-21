@@ -40,3 +40,5 @@ use the editor.
 - Use browser View Transitions for theme changes with a button-origin circular reveal of the fully recolored screen, except the chat settings switch changes shared theme directly; unsupported browsers and reduced-motion preferences also change theme directly.
 - Permission logo and animated ripples share the same fixed-size anchor; position the wave origin at the logo asset's splash center (50%, 70.3125%) rather than offsetting separate page layers.
 - Character SVGs declare intrinsic dimensions, token-based paint attributes and their own peek clip so delayed CSS cannot produce oversized black silhouettes or leak torso geometry across messages.
+- Identify topic rooms by stable creation IDs and keep joined rooms plus per-room messages in app-level React state; creation metadata stays unchanged across re-entry and same-keyword rooms remain distinct.
+- Reply gestures use horizontal pointer intent while preserving vertical scrolling; sent replies retain an original-message reference and quoted snapshot for re-entry.

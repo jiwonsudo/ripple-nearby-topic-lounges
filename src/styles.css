@@ -200,6 +200,8 @@
 .ripple-app { letter-spacing: 0; }
 .phone-shell { isolation: isolate; }
 .character { --character-skin: var(--avatar-warm); --character-hair: var(--avatar-cocoa); --character-clothes: var(--avatar-blue); overflow: visible; }
+.size-character { flex-shrink: 0; }
+.ripple-app button .size-character { width: 100%; height: 100%; }
 .character[data-skin="porcelain"] { --character-skin: var(--avatar-porcelain); }
 .character[data-skin="peach"] { --character-skin: var(--avatar-peach); }
 .character[data-skin="tan"] { --character-skin: var(--avatar-tan); }
@@ -258,6 +260,8 @@
 .water-count { text-shadow: var(--water-count-shadow); }
 .live-dot { animation: live-pulse 2.4s ease-in-out infinite; }
 .chat-message { font-size: var(--chat-font-size); overflow-wrap: anywhere; }
+.reply-highlight { animation: reply-highlight 1.2s ease-out; }
+@keyframes reply-highlight { from { background: var(--primary-soft); } to { background: transparent; } }
 [data-chat-size="small"] { --chat-font-size: 13px; }
 [data-chat-size="medium"] { --chat-font-size: 14px; }
 [data-chat-size="large"] { --chat-font-size: 16px; }

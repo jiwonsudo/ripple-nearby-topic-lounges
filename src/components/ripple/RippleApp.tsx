@@ -1,12 +1,13 @@
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { ArrowLeft, ChevronRight, Clock, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Reply as ReplyIcon, Home, Send, Share2, ShieldAlert, Ban, User, X, MapPin, Users, Sun, Moon, Settings2, Check, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { chatSizes, defaultAppearance, type ChatSize, type ThemeMode } from "./appearance";
 import { topicImages } from "./topic-images";
+import { nearbyRooms, initialJoinedRooms, joinRoom, createMessage, isReplySwipe, type RoomInfo, type Msg } from "./rooms";
 import { RippleLogo } from "./RippleLogo";
 import { Character } from "./Character";
 import { CharacterEditor } from "./CharacterEditor";
@@ -24,15 +25,7 @@ const AppearanceContext = createContext({
 });
 
  type Screen = "permission" | "home" | "verify" | "lounge" | "room" | "past" | "settings";
-type RoomInfo = { tag: string; c: string; place: string; time: string; n: number; past?: boolean };
 type Target = { kind: "lounge" } | { kind: "room"; room: RoomInfo };
-const nearbyRooms: RoomInfo[] = [
-  { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "2026.11.21 14:30", n: 8 },
-  { tag: "#학식", c: "cover-4", place: "학생회관 1층", time: "2026.11.21 12:05", n: 5 },
-  { tag: "#해커톤", c: "cover-3", place: "상명대 미래백년관", time: "2026.11.21 10:40", n: 14 },
-];
-type Msg = { id: number; nick: string; emoji: string; text: string; me?: boolean; bot?: boolean };
-
 const ease = [0.22, 1, 0.36, 1] as const;
 
 const loungeSeed: Msg[] = [
@@ -59,14 +52,6 @@ const roomMsgs: Record<string, Msg[]> = {
     { id: 3, nick: "민트 고양이", emoji: "🐱", text: "발표 몇 시부터예요?" },
   ],
 };
-const pastRooms = [
-  { tag: "#뉴진스", place: "상명대 미래백년관", time: "오늘 14:30", n: 8, c: "cover-1" },
-  { tag: "#해커톤", place: "상명대 미래백년관", time: "어제 22:10", n: 14, c: "cover-3" },
-  { tag: "#학식", place: "학생회관 1층", time: "11.19 12:05", n: 6, c: "cover-4" },
-  { tag: "#중간고사", place: "중앙도서관", time: "11.17 01:40", n: 21, c: "cover-2" },
-  { tag: "#축제라인업", place: "대운동장", time: "11.14 18:20", n: 33, c: "cover-5" },
-];
-
 export function RippleApp() {
   const [avatar, setAvatar] = useState<Avatar>({ ...defaultAvatar });
   const [theme, setRawTheme] = useState<ThemeMode>(defaultAppearance.theme);
@@ -104,11 +89,15 @@ export function RippleApp() {
     setWave({ ...origin.current, radius: Math.hypot(box.width,box.height), next, phase: "expand" });
   };
   const [verified, setVerified] = useState(false);
-  const [room, setRoom] = useState<RoomInfo>((nearbyRooms[0] ?? { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "오늘", n: 8 }));
+  const [room, setRoom] = useState<RoomInfo>(initialJoinedRooms[0] ?? { id: "future-newjeans-1121", tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "2026.11.21 14:30", n: 8, nearby: true });
+  const [joinedRooms, setJoinedRooms] = useState(initialJoinedRooms);
+  const [messages, setMessages] = useState<Record<string, Msg[]>>({});
+  const updateMessages = (id: string, msgs: Msg[]) => setMessages((current) => ({ ...current, [id]: msgs }));
+  const enterRoom = (rm: RoomInfo, back: Screen) => { setJoinedRooms((current) => joinRoom(current, rm)); setRoom(rm); setRoomBack(back); setScreen("room"); };
   const [roomBack, setRoomBack] = useState<Screen>("lounge");
   const [pending, setPending] = useState<Target>({ kind: "lounge" });
   const openTarget = (t: Target) => {
-    if (t.kind === "room") { setRoom(t.room); setRoomBack("home"); setScreen("room"); } else setScreen("lounge");
+    if (t.kind === "room") enterRoom(t.room, "home"); else setScreen("lounge");
   };
   const request = (t: Target) => { if (verified) openTarget(t); else { setPending(t); setScreen("verify"); } };
   const tab = screen === "past" ? "past" : screen === "settings" ? "settings" : screen === "home" ? "home" : null;
@@ -134,9 +123,9 @@ export function RippleApp() {
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
             {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
-            {screen === "lounge" && <Lounge onBack={() => setScreen("home", true)} onRoom={() => { setRoom((nearbyRooms[0] ?? { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "오늘", n: 8 })); setRoomBack("lounge"); setScreen("room"); }} />}
-            {screen === "room" && <Room key={room.tag} room={room} onBack={() => setScreen(roomBack, true)} />}
-            {screen === "past" && <Past onOpen={(rm) => { setRoom({ ...rm, past: true }); setRoomBack("past"); setScreen("room"); }} />}
+            {screen === "lounge" && <Lounge msgs={messages["lounge"] ?? loungeSeed} onMessages={(msgs) => updateMessages("lounge", msgs)} onBack={() => setScreen("home", true)} onRoom={() => { const rm = nearbyRooms[0]; if (rm) enterRoom(rm, "lounge"); }} />}
+            {screen === "room" && <Room key={room.id} room={room} msgs={messages[room.id] ?? roomMsgs[room.tag] ?? roomSeed} onMessages={(msgs) => updateMessages(room.id, msgs)} onBack={() => setScreen(roomBack, true)} />}
+            {screen === "past" && <RegionalRooms joinedRooms={joinedRooms} onOpen={(rm) => enterRoom(rm, "past")} />}
             {screen === "settings" && <Settings verified={verified} onVerify={() => setScreen("verify")} />}
           </motion.div>
         </AnimatePresence>
@@ -153,7 +142,7 @@ export function RippleApp() {
 function TabBar({ tab, go }: { tab: string; go: (s: Screen) => void }) {
   const items = [
     { k: "home", label: "홈", Icon: Home },
-    { k: "past", label: "지난 방", Icon: Clock },
+    { k: "past", label: "지역 방", Icon: MapPin },
     { k: "settings", label: "내 정보", Icon: User },
   ] as const;
   return (
@@ -251,37 +240,56 @@ function Header({ title, sub, onBack, right }: { title: string; sub?: string; on
   );
 }
 
-function useChat(seed: Msg[]) {
-  const [msgs, setMsgs] = useState(seed);
+function useChat(msgs: Msg[], onMessages: (msgs: Msg[]) => void) {
   const [text, setText] = useState("");
+  const [reply, setReply] = useState<Msg | null>(null);
   const send = () => {
-    if (!text.trim()) return;
-    setMsgs((m) => [...m, { id: Date.now(), nick: "나", emoji: "🐻", text: text.trim(), me: true }]);
+    const message = createMessage(Date.now(), text, reply);
+    if (!message) return;
+    onMessages([...msgs, message]);
     setText("");
+    setReply(null);
   };
-  return { msgs, text, setText, send };
+  return { msgs, text, setText, send, reply, setReply };
 }
 
-function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void; bot?: ReactNode }) {
+function ChatList({ msgs, onLong, onReply, bot }: { msgs: Msg[]; onLong: (m: Msg) => void; onReply: (m: Msg) => void; bot?: ReactNode }) {
   const { avatar } = useContext(CharacterContext);
   const end = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gesture = useRef<{ x: number; y: number; id: number } | null>(null);
+  const [swipe, setSwipe] = useState<{ id: number; x: number } | null>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length]);
-  const start = (m: Msg) => { if (m.me) return; timer.current = setTimeout(() => onLong(m), 450); };
   const cancel = () => { if (timer.current) clearTimeout(timer.current); };
+  useEffect(() => () => cancel(), []);
+  const finish = (m: Msg, x: number, y: number) => {
+    cancel();
+    const start = gesture.current;
+    if (start && start.id === m.id && isReplySwipe(x-start.x, y-start.y)) onReply(m);
+    gesture.current = null;
+    setSwipe(null);
+  };
+  const jump = (id: number) => {
+    const row = end.current?.parentElement?.querySelector(`[data-message-id="${id}"]`);
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    row?.classList.remove("reply-highlight");
+    requestAnimationFrame(() => row?.classList.add("reply-highlight"));
+  };
   return (
-    <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
+    <div aria-label="대화 메시지" className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
       {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
-        <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
-          className={`chat-row relative flex min-h-14 items-start ${m.me ? "justify-end" : ""}`}>
+        <motion.div key={m.id} data-message-id={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }} className={`chat-row relative flex min-h-14 items-start ${m.me ? "justify-end" : ""}`}>
           <div className={`chat-character pointer-events-none absolute top-1 h-[46px] w-[42px] ${m.me ? "-right-[17px]" : "-left-[17px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.nick)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
-          <div className={`min-w-0 max-w-[calc(100%-64px)] ${m.me ? "ml-5 mr-11 items-end" : "ml-11 mr-5"} flex flex-col`}>
+          <motion.div animate={{ x: swipe?.id === m.id ? swipe.x : 0 }} transition={{ duration: 0.16 }} className={`relative min-w-0 max-w-[calc(100%-64px)] ${m.me ? "ml-5 mr-11 items-end" : "ml-11 mr-5"} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
-            <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
-              className={`chat-message select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>
+            <div onPointerDown={(e) => { gesture.current = { x: e.clientX, y: e.clientY, id: m.id }; e.currentTarget.setPointerCapture(e.pointerId); timer.current = setTimeout(() => { gesture.current = null; onLong(m); }, 450); }}
+              onPointerMove={(e) => { const start = gesture.current; if (!start || start.id !== m.id) return; const dx = e.clientX-start.x; const dy = e.clientY-start.y; if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancel(); if (Math.abs(dx) > Math.abs(dy)*1.5) setSwipe({ id: m.id, x: Math.max(-64, Math.min(64, dx)) }); }}
+              onPointerUp={(e) => finish(m, e.clientX, e.clientY)} onPointerCancel={() => { cancel(); gesture.current = null; setSwipe(null); }} onContextMenu={(e) => { e.preventDefault(); onLong(m); }}
+              className={`chat-message touch-pan-y select-none rounded-2xl px-3.5 py-2.5 leading-relaxed ${m.me ? "rounded-br-md bg-chat-own font-medium text-chat-own-foreground" : "rounded-tl-md bg-chat-other"}`}>
+              {m.reply && <Button variant="ghost" aria-label={`${m.reply.nick}의 원문 보기`} onClick={() => { if (m.reply) jump(m.reply.id); }} className={`mb-2 h-auto w-full min-w-0 justify-start whitespace-normal rounded-lg px-2.5 py-2 text-left text-inherit hover:bg-background/20 hover:text-inherit ${m.me ? "bg-background/15" : "bg-background/60"}`}><span className="min-w-0"><span className="block text-[11px] font-semibold">{m.reply.nick}</span><span className="line-clamp-2 text-xs font-normal opacity-75">{m.reply.text}</span></span></Button>}
               {m.text}
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       ))}
       <div ref={end} />
@@ -289,14 +297,16 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
   );
 }
 
-function InputBar({ text, setText, send }: { text: string; setText: (s: string) => void; send: () => void }) {
+function InputBar({ text, setText, send, reply, setReply }: { text: string; setText: (s: string) => void; send: () => void; reply: Msg | null; setReply: (m: Msg | null) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (reply) input.current?.focus({ preventScroll: true }); }, [reply]);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-center gap-2 px-4 pb-8 pt-2">
-      <input value={text} onChange={(e) => setText(e.target.value)} aria-label="메시지" placeholder="메시지 보내기"
-        className="bg-secondary h-12 min-w-0 flex-1 rounded-full border border-transparent px-5 chat-message outline-none placeholder:text-muted-foreground focus:border-primary" />
-      <MotionButton variant="ghost" whileTap={{ scale: 0.9 }} aria-label="메시지 보내기" type="submit" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Send className="h-5 w-5" />
-      </MotionButton>
+    <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex shrink-0 items-end gap-2 border-t border-border px-4 pb-8 pt-2">
+      <div className="min-w-0 flex-1 overflow-hidden rounded-[24px] bg-secondary focus-within:ring-1 focus-within:ring-primary">
+        {reply && <div className="mx-4 flex items-center gap-2 border-b border-border pb-2 pt-3"><div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-foreground">{reply.nick}에게 답장</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{reply.text}</p></div><Button variant="ghost" size="icon" aria-label="답장 취소" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground" onClick={() => setReply(null)}><X className="h-3.5 w-3.5" /></Button></div>}
+        <input ref={input} value={text} onChange={(e) => setText(e.target.value)} aria-label="메시지" placeholder="메시지 보내기" className="chat-message h-12 w-full min-w-0 border-0 bg-transparent px-5 outline-none placeholder:text-muted-foreground" />
+      </div>
+      <MotionButton variant="ghost" disabled={!text.trim()} whileTap={{ scale: 0.9 }} aria-label="메시지 보내기" type="submit" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Send className="h-5 w-5" /></MotionButton>
     </form>
   );
 }
@@ -321,7 +331,7 @@ function Sheet({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
-function ModerationSheet({ target, onClose }: { target: Msg | null; onClose: () => void }) {
+function ModerationSheet({ target, onClose, onReply }: { target: Msg | null; onClose: () => void; onReply: (m: Msg) => void }) {
   const [done, setDone] = useState<string | null>(null);
   useEffect(() => setDone(null), [target]);
   return (
@@ -331,16 +341,17 @@ function ModerationSheet({ target, onClose }: { target: Msg | null; onClose: () 
       ) : (
         <>
           <p className="mb-3 px-1 text-sm text-muted-foreground">{target?.nick}님의 메시지</p>
-          <Button variant="ghost" onClick={() => { setDone("신고가 접수됐어요"); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold text-destructive hover:bg-secondary"><ShieldAlert className="h-5 w-5" />신고하기</Button>
-          <Button variant="ghost" onClick={() => { setDone(`${target?.nick}님을 차단했어요`); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold hover:bg-secondary"><Ban className="h-5 w-5" />차단하기</Button>
+          <Button variant="ghost" onClick={() => { if (target) onReply(target); onClose(); }} className="flex h-auto w-full justify-start gap-3 px-3 py-4 font-semibold"><ReplyIcon className="h-5 w-5" />답장하기</Button>
+          {!target?.me && <><Button variant="ghost" onClick={() => { setDone("신고가 접수됐어요"); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold text-destructive hover:bg-secondary"><ShieldAlert className="h-5 w-5" />신고하기</Button>
+          <Button variant="ghost" onClick={() => { setDone(`${target?.nick}님을 차단했어요`); setTimeout(onClose, 900); }} className="flex h-auto w-full justify-start items-center gap-3 rounded-2xl px-3 py-4 text-left font-semibold hover:bg-secondary"><Ban className="h-5 w-5" />차단하기</Button></>}
         </>
       )}
     </Sheet>
   );
 }
 
-function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) {
-  const chat = useChat(loungeSeed);
+function Lounge({ onBack, onRoom, msgs, onMessages }: { onBack: () => void; onRoom: () => void; msgs: Msg[]; onMessages: (msgs: Msg[]) => void }) {
+  const chat = useChat(msgs, onMessages);
   const [target, setTarget] = useState<Msg | null>(null);
   const bot = (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
@@ -355,9 +366,9 @@ function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <Header title="미래백년관 리플" sub="지금 이곳에서 나누는 이야기" onBack={onBack} right={<ChatSettingsButton />} />
-      <ChatList msgs={chat.msgs} onLong={setTarget} bot={bot} />
+      <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} bot={bot} />
       <InputBar {...chat} />
-      <ModerationSheet target={target} onClose={() => setTarget(null)} />
+      <ModerationSheet target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
     </div>
   );
 }
@@ -372,8 +383,8 @@ function Cover({ tag, c = "cover-1", big }: { tag: string; c?: string; big?: boo
   );
 }
 
-function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
-  const chat = useChat(roomMsgs[room.tag] ?? roomSeed);
+function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () => void; msgs: Msg[]; onMessages: (msgs: Msg[]) => void }) {
+  const chat = useChat(msgs, onMessages);
   const [target, setTarget] = useState<Msg | null>(null);
   const [share, setShare] = useState(false);
   return (
@@ -381,12 +392,13 @@ function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
       <Header title={room.tag} onBack={onBack} right={<div className="flex gap-1"><ChatSettingsButton /><Button variant="ghost" aria-label="방 공유" onClick={() => setShare(true)} className="bg-secondary h-10 w-10 rounded-full"><Share2 /></Button></div>} />
       <div className="px-4">
         <motion.div layoutId="cover" className="h-28 overflow-hidden rounded-2xl"><Cover tag={room.tag} c={room.c} big /></motion.div>
-        <p className="mt-3 text-xs font-medium text-muted-foreground">{room.time} · {room.place} · {room.n}명</p>
-        <p className="mt-2 inline-block rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary">{room.past ? "지난 방이에요 · 대화를 이어갈 수 있어요" : "이 방은 장소를 떠나도 유지돼요"}</p>
+        <p className="mt-3 text-xs font-medium text-muted-foreground">생성 {room.time} · {room.n}명</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{room.place}에서 시작된 {room.tag} 이야기</p>
+        <p className="mt-2 text-xs font-semibold text-primary">장소를 떠나도 계속 이야기할 수 있어요</p>
       </div>
-      <ChatList msgs={chat.msgs} onLong={setTarget} />
+      <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} />
       <InputBar {...chat} />
-      <ModerationSheet target={target} onClose={() => setTarget(null)} />
+      <ModerationSheet target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
       <AnimatePresence>
         {share && (
           <motion.div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-background/90 p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -410,24 +422,24 @@ function Room({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
   );
 }
 
-function Past({ onOpen }: { onOpen: (r: RoomInfo) => void }) {
+function RegionalRooms({ joinedRooms, onOpen }: { joinedRooms: RoomInfo[]; onOpen: (r: RoomInfo) => void }) {
+  const [view, setView] = useState<"nearby" | "mine">("nearby");
+  const [place, setPlace] = useState("전체 장소");
+  const places = [...new Set(joinedRooms.map((r) => r.place))];
+  const rooms = view === "nearby" ? nearbyRooms : joinedRooms.filter((r) => place === "전체 장소" || r.place === place);
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
-      <h1 className="mt-4 text-[30px] font-extrabold tracking-normal">이곳의 지난 방</h1>
-      <p className="mt-1 text-sm text-muted-foreground">상명대 미래백년관 근처에서 열렸던 방이에요</p>
-      <div className="mt-6 space-y-3">
-        {pastRooms.map((r, i) => (
-          <MotionButton variant="ghost" key={r.tag} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06, ease }}
-            onClick={() => onOpen(r)} whileTap={{ scale: 0.98 }} className="flex w-full items-center gap-4 h-auto rounded-2xl bg-card p-3 text-left">
-            <Cover tag={r.tag} c={r.c} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[17px] font-extrabold">{r.tag}</p>
-              <p className="truncate text-xs text-muted-foreground">{r.place} · {r.time}</p>
-              <p className="mt-1 text-xs font-semibold text-primary"><Users className="mr-1 inline h-3 w-3" />{r.n}명</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </MotionButton>
-        ))}
+      <h1 className="mt-5 text-[30px] font-extrabold">지역 방</h1>
+      <div role="tablist" aria-label="방 목록" className="mt-5 flex border-b border-border">
+        {([ ["nearby", "주변 방"], ["mine", "내가 참여한 방"] ] as const).map(([key, label]) => <Button key={key} variant="ghost" role="tab" aria-selected={view === key} onClick={() => setView(key)} className={`h-11 flex-1 rounded-none border-b-2 font-bold ${view === key ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>{label}</Button>)}
+      </div>
+      {view === "nearby" ? <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><MapPin className="h-3.5 w-3.5" />지금 상명대 미래백년관 근처</p> : <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">장소는 달라도, 이야기는 계속</p><select aria-label="참여한 장소" value={place} onChange={(e) => setPlace(e.target.value)} className="max-w-[160px] min-w-0 rounded-lg border border-border bg-secondary px-2 py-2 text-xs font-semibold"><option>전체 장소</option>{places.map((p) => <option key={p}>{p}</option>)}</select></div>}
+      <div className="mt-3 divide-y divide-border">
+        {rooms.map((r, i) => <MotionButton variant="ghost" key={r.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} onClick={() => onOpen(r)} whileTap={{ scale: 0.98 }} className="flex h-auto w-full items-center gap-3 whitespace-normal rounded-none px-0 py-4 text-left">
+          <Cover tag={r.tag} c={r.c} />
+          <div className="min-w-0 flex-1"><p className="text-[17px] font-extrabold">{r.tag}</p><p className="mt-1 text-xs text-muted-foreground">{r.place}</p><p className="mt-1 text-[11px] text-muted-foreground">생성 {r.time}</p><p className="mt-1.5 text-xs font-semibold text-primary"><Users className="mr-1 inline h-3 w-3" />{r.n}명 · {joinedRooms.some((joined) => joined.id === r.id) ? "대화 이어가기" : "참여하기"}</p></div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </MotionButton>)}
       </div>
     </div>
   );
@@ -444,10 +456,10 @@ function Verify({ onBack, onDone }: { onBack: () => void; onDone: () => void }) 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-6">
         <h1 className="text-[28px] font-extrabold leading-tight tracking-normal">휴대폰 번호로<br />한 번만 인증할게요</h1>
         <p className="mt-2 text-sm text-muted-foreground">상대에게는 닉네임만 보여요</p>
-        <div className="mt-8 flex gap-2">
+        <div className="mt-8 flex items-center gap-2">
           <input inputMode="numeric" value={phone} onChange={(e) => setPhone(fmt(e.target.value))} placeholder="010-0000-0000"
             aria-label="휴대폰 번호" className="bg-secondary h-14 min-w-0 flex-1 rounded-2xl border border-transparent px-5 text-lg font-semibold outline-none focus:border-primary" />
-          <Button variant="ghost" disabled={phone.length < 12} onClick={() => setSent(true)} className="shrink-0 rounded-2xl bg-secondary px-4 text-sm font-bold disabled:opacity-40">{sent ? "재전송" : "인증번호"}</Button>
+          <Button variant="ghost" disabled={phone.length < 12} onClick={() => setSent(true)} className="h-14 shrink-0 rounded-2xl bg-secondary px-4 text-sm font-bold disabled:opacity-40">{sent ? "재전송" : "인증번호"}</Button>
         </div>
         <AnimatePresence>
           {sent && (
