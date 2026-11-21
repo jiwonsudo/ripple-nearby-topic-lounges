@@ -33,5 +33,5 @@ use the editor.
 - Define theme, story-cover, motion, and chat typography roles in global CSS; chat size options live in the browser-safe appearance module for consistent settings and previews.
 - Map mock topic photos by keyword in a browser-safe module and reuse their CDN asset pointers across room covers, lists, and story previews; this keeps a topic's visual identity consistent.
 - Load the Three.js water renderer only after mounting; animate a token-colored full-bleed shader and dispose GPU resources on navigation to keep SSR safe and mobile rendering bounded.
-- Use the origin-aware wave overlay only when entering a lounge or topic room; other screens use a short crossfade, and reduced-motion users bypass the wave.
+- Use the origin-aware wave only for room entry; explicit room returns use a gentle directional crossfade even when the destination is a lounge, and reduced-motion users bypass the wave.
 - Portal sheets into the phone shell rather than animated screen layers so their backdrop and content stay above navigation without escaping the phone frame.

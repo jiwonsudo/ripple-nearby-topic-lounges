@@ -69,10 +69,12 @@ export function RippleApp() {
   const shell = useRef<HTMLDivElement>(null);
   const origin = useRef({ x: 195, y: 420 });
   const navigating = useRef(false);
+  const [returning, setReturning] = useState(false);
   const [wave, setWave] = useState<{ x: number; y: number; radius: number; next: Screen; phase: "expand" | "reveal" } | null>(null);
-  const setScreen = (next: Screen) => {
+  const setScreen = (next: Screen, isReturn = false) => {
     if (navigating.current || next === screen) return;
-    if (next !== "lounge" && next !== "room") { setRawScreen(next); return; }
+    setReturning(isReturn);
+    if (isReturn || (next !== "lounge" && next !== "room")) { setRawScreen(next); return; }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setRawScreen(next); return; }
     const box = shell.current?.getBoundingClientRect();
     if (!box) { setRawScreen(next); return; }
@@ -94,20 +96,22 @@ export function RippleApp() {
     <MotionConfig reducedMotion="user">
     <div className={`${theme === "dark" ? "dark" : ""} ripple-app flex min-h-screen items-center justify-center bg-desk sm:p-6`}>
       <div ref={shell} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest("button"); const box = shell.current?.getBoundingClientRect(); if (button && box) { const target = button.getBoundingClientRect(); origin.current = { x: target.left-box.left+target.width/2, y: target.top-box.top+target.height/2 }; } }} data-chat-size={chatSize} className="phone-shell relative h-[100dvh] w-full overflow-hidden bg-background font-sans text-foreground sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:rounded-[48px] sm:border sm:border-border sm:shadow-2xl">
-        <AnimatePresence mode="sync">
+        <AnimatePresence mode="sync" custom={returning}>
           <motion.div
             key={screen}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease }}
+            custom={returning}
+            initial={returning ? { opacity: 0, x: -12 } : { opacity: 0, x: 0 }}
+            animate={{ opacity: 1, x: 0 }}
+            variants={{ leaving: (back: boolean) => ({ opacity: 0, x: back ? 16 : 0, transition: { duration: back ? 0.24 : 0.12, ease } }) }}
+            exit="leaving"
+            transition={{ duration: returning ? 0.24 : 0.12, ease }}
             className="absolute inset-0 z-10 flex flex-col"
           >
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
             {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
-            {screen === "lounge" && <Lounge onBack={() => setScreen("home")} onRoom={() => { setRoom((nearbyRooms[0] ?? { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "오늘", n: 8 })); setRoomBack("lounge"); setScreen("room"); }} />}
-            {screen === "room" && <Room key={room.tag} room={room} onBack={() => setScreen(roomBack)} />}
+            {screen === "lounge" && <Lounge onBack={() => setScreen("home", true)} onRoom={() => { setRoom((nearbyRooms[0] ?? { tag: "#뉴진스", c: "cover-2", place: "상명대 미래백년관", time: "오늘", n: 8 })); setRoomBack("lounge"); setScreen("room"); }} />}
+            {screen === "room" && <Room key={room.tag} room={room} onBack={() => setScreen(roomBack, true)} />}
             {screen === "past" && <Past onOpen={(rm) => { setRoom({ ...rm, past: true }); setRoomBack("past"); setScreen("room"); }} />}
             {screen === "settings" && <Settings verified={verified} onVerify={() => setScreen("verify")} />}
           </motion.div>
