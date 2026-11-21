@@ -6,6 +6,8 @@ type Screen = "permission" | "home" | "verify" | "lounge" | "room" | "past" | "s
 type Msg = { id: number; nick: string; emoji: string; text: string; me?: boolean; bot?: boolean };
 
 const ease = [0.22, 1, 0.36, 1] as const;
+const POP = ["bg-pop-pink", "bg-pop-cyan", "bg-pop-orange", "bg-pop-violet", "bg-primary"];
+const nickColor = (n: string) => POP[[...n].reduce((a, ch) => a + ch.charCodeAt(0), 0) % POP.length];
 
 const loungeSeed: Msg[] = [
   { id: 1, nick: "졸린 판다", emoji: "🐼", text: "여기 3층 콘센트 자리 아직 남았나요?" },
@@ -86,7 +88,7 @@ function Ripples({ size, count = 3, period = 2, className = "" }: { size: number
   return (
     <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${className}`} style={{ width: size, height: size }}>
       {Array.from({ length: count }).map((_, i) => (
-        <motion.span key={i} className="absolute inset-0 rounded-full border-2 border-primary"
+        <motion.span key={i} className="absolute inset-0 rounded-full border border-primary"
           initial={{ scale: 0.1, opacity: 0.8 }} animate={{ scale: 1, opacity: 0 }}
           transition={{ duration: period * count / 1.5, repeat: Infinity, delay: i * period / 1.5 * (count > 2 ? 1 : 1), ease: "easeOut" }} />
       ))}
@@ -127,7 +129,7 @@ function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; o
 function HomeScreen({ onTalk }: { onTalk: () => void }) {
   const count = 12;
   const dots = [[-110, -40], [95, -95], [120, 60], [-70, 110], [30, 140], [-130, 50], [60, -150], [-40, -140], [140, -20], [-100, -110], [10, -80], [85, 115]];
-  const chips = [{ t: "#뉴진스", x: -95, y: -120 }, { t: "#학식", x: 90, y: 30 }, { t: "#해커톤", x: -70, y: 150 }];
+  const chips = [{ t: "#뉴진스", x: -95, y: -120, c: "bg-pop-pink" }, { t: "#학식", x: 90, y: 30, c: "bg-pop-orange" }, { t: "#해커톤", x: -70, y: 150, c: "bg-pop-cyan" }];
   return (
     <div className="flex flex-1 flex-col pb-28">
       <div className="flex items-center justify-between px-6 pt-2">
@@ -137,20 +139,20 @@ function HomeScreen({ onTalk }: { onTalk: () => void }) {
         </div>
       </div>
       <div className="relative flex-1">
-        {[120, 220, 320].map((s) => (
+        {[220].map((s) => (
           <div key={s} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border" style={{ width: s, height: s }} />
         ))}
-        <Ripples size={360} count={3} period={2} />
+        <Ripples size={340} count={2} period={2} className="opacity-40" />
         {dots.slice(0, count).map(([x, y], i) => (
-          <motion.span key={i} className="absolute left-1/2 top-1/2 h-4 w-4 rounded-full bg-accent blur-[3px]"
-            style={{ x: (x ?? 0) - 8, y: (y ?? 0) - 8 }}
-            animate={{ opacity: [0.4, 0.9, 0.4], scale: [0.9, 1.15, 0.9] }}
+          <motion.span key={i} className={`absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full ${POP[i % POP.length]}`}
+            style={{ x: (x ?? 0) - 5, y: (y ?? 0) - 5 }}
+            animate={{ opacity: [0.35, 0.8, 0.35] }}
             transition={{ duration: 3 + (i % 3), repeat: Infinity, delay: i * 0.2 }} />
         ))}
         {chips.map((c, i) => (
-          <motion.span key={c.t} className="glass absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-bold"
+          <motion.span key={c.t} className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-extrabold text-pop-ink ${c.c}`}
             style={{ marginLeft: c.x, marginTop: c.y }}
-            animate={{ y: [0, -6, 0] }} transition={{ duration: 3, repeat: Infinity, delay: i * 0.7 }}>{c.t}</motion.span>
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.15 }}>{c.t}</motion.span>
         ))}
         <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
           <span className="mb-3 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">
@@ -208,7 +210,7 @@ function ChatList({ msgs, onLong, bot }: { msgs: Msg[]; onLong: (m: Msg) => void
       {msgs.map((m, i) => m.bot ? <div key="bot">{bot}</div> : (
         <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }}
           className={`flex gap-2 ${m.me ? "justify-end" : ""}`}>
-          {!m.me && <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-lg">{m.emoji}</div>}
+          {!m.me && <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${nickColor(m.nick)}`}>{m.emoji}</div>}
           <div className={`max-w-[72%] ${m.me ? "items-end" : ""} flex flex-col`}>
             {!m.me && <span className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.nick}</span>}
             <div onPointerDown={() => start(m)} onPointerUp={cancel} onPointerLeave={cancel} onContextMenu={(e) => { e.preventDefault(); if (!m.me) onLong(m); }}
@@ -275,10 +277,9 @@ function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) 
   const [target, setTarget] = useState<Msg | null>(null);
   const bot = (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
-      className="relative my-2 overflow-hidden rounded-3xl border border-primary/40 bg-card p-5">
-      <div className="absolute inset-0 ripple-pattern opacity-50" />
-      <div className="relative">
-        <p className="text-xs font-bold text-primary">💧 RIPPLE</p>
+      className="relative my-2 overflow-hidden rounded-3xl bg-card p-5">
+            <div className="relative">
+        <p className="text-xs font-extrabold text-pop-pink">💧 RIPPLE</p>
         <p className="mt-1 text-[17px] font-extrabold">3명이 '뉴진스' 얘기를 하고 있어요</p>
         <motion.button whileTap={{ scale: 0.96 }} onClick={onRoom} className="mt-4 rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground shadow-lime">#뉴진스방 입장하기</motion.button>
       </div>
@@ -297,7 +298,7 @@ function Lounge({ onBack, onRoom }: { onBack: () => void; onRoom: () => void }) 
 function Cover({ tag, c = "cover-1", big }: { tag: string; c?: string; big?: boolean }) {
   return (
     <div className={`${c} relative overflow-hidden ${big ? "h-full w-full" : "h-16 w-16 shrink-0 rounded-2xl"}`}>
-      <div className="absolute inset-0 ripple-pattern" />
+      {big && <div className="absolute inset-0 ripple-pattern" />}
       <span className={`absolute bottom-2 left-2 font-black tracking-tight text-primary-foreground ${big ? "bottom-5 left-5 text-5xl" : "text-[11px]"}`}>{tag}</span>
     </div>
   );
