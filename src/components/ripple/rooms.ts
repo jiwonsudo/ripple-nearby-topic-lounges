@@ -24,6 +24,7 @@ export function createMessage(id: number, text: string, reply: Msg | null, sende
   return { id, userId: sender.id, nick: sender.nickname, emoji: "🐻", text: text.trim(), me: true, ...(reply && !reply.bot ? { reply: { id: reply.id, userId: reply.userId, nick: reply.nick, text: reply.text } } : {}) };
 }
 export function isReplySwipe(dx: number, dy: number) { return Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.5; }
+export function shouldSubmitChatKey(key: string, composing: boolean, keyCode: number) { return key === "Enter" && !composing && keyCode !== 229; }
 export function roomSwipeAction(dx: number, dy: number): "leave" | "mute" | null {
   if (!isReplySwipe(dx, dy)) return null;
   return dx < 0 ? "leave" : "mute";

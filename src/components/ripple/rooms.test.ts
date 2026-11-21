@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { canChatInRoom, createMessage, initialJoinedRooms, isReplySwipe, joinRoom, leaveJoinedRoom, roomSwipeAction, toggleRoomMute } from "./rooms";
+import { canChatInRoom, createMessage, initialJoinedRooms, isReplySwipe, joinRoom, leaveJoinedRoom, roomSwipeAction, toggleRoomMute, shouldSubmitChatKey } from "./rooms";
 
 describe("지역 방과 답장", () => {
+  it("keeps the reply while Enter completes Korean composition", () => {
+    expect(shouldSubmitChatKey("Enter", true, 13)).toBe(false);
+    expect(shouldSubmitChatKey("Enter", false, 229)).toBe(false);
+    expect(shouldSubmitChatKey("Enter", false, 13)).toBe(true);
+  });
   it("keeps rooms from multiple places with full creation dates and topics", () => {
     expect(new Set(initialJoinedRooms.map((r) => r.place)).size).toBeGreaterThan(1);
     for (const room of initialJoinedRooms) {

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { PoolCharacter } from "./PoolCharacter";
-import { createPoolBody, poolActivity, stepPoolBody, type PoolFrame } from "./pool-motion";
+import { createPoolBody, poolActivity, stepPoolBody, throwPoolBody, type PoolFrame } from "./pool-motion";
 import { distinctPoolAvatars, type Avatar } from "./avatar";
 
 // The first four IDs are the same people shown in the lounge, not new avatars.
@@ -32,15 +32,45 @@ export function SwimmingRipplers({ avatar, nickname, userId }: { avatar: Avatar;
     if (!element || !shell) return;
     const rows = Array.from(element.querySelectorAll<HTMLElement>("[data-swimmer-id]"));
     const bodies = peopleRef.current.map((person, index) => createPoolBody(index, element.clientWidth, element.clientHeight, poolActivity(person.avatar) === "floating"));
+    let held: { index: number; pointerId: number; x: number; y: number; stamp: number; vx: number; vy: number } | null = null;
+    const point = (event: PointerEvent) => {
+      const box = element.getBoundingClientRect();
+      return { x: Math.max(40, Math.min(box.width - 40, event.clientX - box.left)), y: Math.max(40, Math.min(box.height - 40, event.clientY - box.top)) };
+    };
+    const down = (event: PointerEvent) => {
+      const target = (event.target as Element).closest<HTMLElement>("[data-swimmer-id]");
+      const index = target ? rows.indexOf(target) : -1;
+      if (!target || index < 0 || held) return;
+      event.preventDefault(); event.stopPropagation(); target.setPointerCapture(event.pointerId);
+      const pos = point(event);
+      held = { index, pointerId: event.pointerId, ...pos, stamp: performance.now(), vx: 0, vy: 0 };
+      target.dataset['held'] = "true";
+    };
+    const move = (event: PointerEvent) => {
+      if (!held || held.pointerId !== event.pointerId) return;
+      const pos = point(event); const stamp = performance.now(); const dt = Math.max((stamp - held.stamp) / 1000, .016);
+      held = { ...held, ...pos, stamp, vx: (pos.x - held.x) / dt, vy: (pos.y - held.y) / dt };
+    };
+    const release = (event: PointerEvent) => {
+      if (!held || held.pointerId !== event.pointerId) return;
+      const row = rows[held.index]; const body = bodies[held.index];
+      if (body) bodies[held.index] = throwPoolBody(body, held.x, held.y, held.vx, held.vy);
+      if (row) { delete row.dataset['held']; row.dataset['landing'] = "true"; setTimeout(() => delete row.dataset['landing'], 420); }
+      const box = element.getBoundingClientRect();
+      shell.dispatchEvent(new CustomEvent("pool-drop", { detail: { x: held.x + box.left, y: held.y + box.top } }));
+      held = null;
+    };
+    element.addEventListener("pointerdown", down); element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", release); element.addEventListener("pointercancel", release);
     const update = (frame: PoolFrame) => {
       const box = element.getBoundingClientRect(); const parent = shell.getBoundingClientRect();
       const touches = frame.touches.map((touch) => ({ ...touch, x: touch.x - (box.left - parent.left), y: touch.y - (box.top - parent.top) }));
       rows.forEach((row, index) => {
         const person = peopleRef.current[index]; if (!person) return;
         const previous = bodies[index]; if (!previous) return;
-        const pos = stepPoolBody(previous, frame.time, box.width, box.height, poolActivity(person.avatar) === "floating", touches, frame.height);
+        const pos = held?.index === index ? { ...previous, x: held.x, y: held.y, vx: 0, vy: 0, lastTime: frame.time, push: 0 } : stepPoolBody(previous, frame.time, box.width, box.height, poolActivity(person.avatar) === "floating", touches, frame.height);
         bodies[index] = pos;
-        row.style.transform = `translate3d(${pos.x - 20}px,${pos.y - 31}px,0)`;
+        row.style.transform = `translate3d(${pos.x - 16}px,${pos.y - 25}px,0)`;
         const body = row.querySelector<HTMLElement>(".swimmer-body");
         if (body) body.style.transform = `rotate(${pos.rotation}deg)`;
         row.dataset['wavePush'] = pos.push.toFixed(2);
@@ -51,7 +81,7 @@ export function SwimmingRipplers({ avatar, nickname, userId }: { avatar: Avatar;
     update({ time: 1.5, width: element.clientWidth, height: element.clientHeight, touches: [] });
     const tick = (event: Event) => update((event as CustomEvent<PoolFrame>).detail);
     shell.addEventListener("pool-frame", tick);
-    return () => shell.removeEventListener("pool-frame", tick);
+    return () => { shell.removeEventListener("pool-frame", tick); element.removeEventListener("pointerdown", down); element.removeEventListener("pointermove", move); element.removeEventListener("pointerup", release); element.removeEventListener("pointercancel", release); };
   }, []);
   return <div ref={host} className="swimming-ripplers absolute inset-0" aria-label={`주변 ${people.length}명의 탑뷰 수영장 캐릭터`}>
     {people.map((person) => <div key={person.id} data-swimmer-id={person.id} data-activity={poolActivity(person.avatar)} className="pool-swimmer">

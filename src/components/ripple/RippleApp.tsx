@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { chatSizes, defaultAppearance, type ChatSize, type ThemeMode } from "./appearance";
 import { topicImages } from "./topic-images";
-import { nearbyRooms, initialJoinedRooms, joinRoom, createMessage, isReplySwipe, leaveJoinedRoom, toggleRoomMute, type RoomInfo, type Msg } from "./rooms";
+import { nearbyRooms, initialJoinedRooms, joinRoom, createMessage, isReplySwipe, shouldSubmitChatKey, leaveJoinedRoom, toggleRoomMute, type RoomInfo, type Msg } from "./rooms";
 import { RippleLogo } from "./RippleLogo";
 import { Character } from "./Character";
 import { CharacterEditor } from "./CharacterEditor";
@@ -38,7 +38,7 @@ const AppearanceContext = createContext({
   setChatSize: (_value: ChatSize) => {},
 });
 
- type Screen = "splash" | "permission" | "home" | "verify" | "lounge" | "room" | "past" | "settings";
+ type Screen = "splash" | "permission" | "home" | "verify" | "lounge" | "room" | "nearby" | "past" | "settings";
 type Target = { kind: "lounge" } | { kind: "room"; room: RoomInfo };
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -130,7 +130,7 @@ export function RippleApp() {
     if (t.kind === "room") enterRoom(t.room, "home"); else { rememberNickname("lounge-future"); setScreen("lounge"); }
   };
   const request = (t: Target) => { if (verified) openTarget(t); else { setPending(t); setScreen("verify"); } };
-  const tab = screen === "past" ? "past" : screen === "settings" ? "settings" : screen === "home" ? "home" : null;
+  const tab = screen === "past" || screen === "nearby" || screen === "settings" || screen === "home" ? screen : null;
 
   return (
     <IdentityContext.Provider value={{ user, setNickname: (nickname) => setUser((current) => ({ ...current, nickname })), roomNicknames, blocked, reports, block, unblock: (userId) => setBlocked((entries) => entries.filter((entry) => entry.userId !== userId)), report }}>
@@ -151,13 +151,13 @@ export function RippleApp() {
             transition={{ duration: returning ? 0.24 : 0.12, ease }}
             className={`absolute inset-0 z-10 flex flex-col ${screen === "home" ? "pointer-events-none" : "bg-background"}`}
           >
-            {screen === "splash" && <div data-testid="startup-splash" className="splash-screen relative flex flex-1 flex-col items-center justify-center gap-5"><div className="splash-symbol relative flex h-44 w-44 items-center justify-center"><span className="relative z-10"><RippleLogo symbolOnly /></span><span className="splash-ring" /><span className="splash-ring splash-ring-delayed" /></div><p className="text-[32px] font-extrabold text-primary">Ripple</p></div>}
+            {screen === "splash" && <div data-testid="startup-splash" className="splash-screen relative flex flex-1 items-center justify-center"><div className="splash-symbol"><RippleLogo large shimmer /></div></div>}
             {screen === "permission" && <Permission onAllow={() => setScreen("home")} />}
             {screen === "home" && <HomeScreen onOpen={request} />}
             {screen === "verify" && <Verify onBack={() => setScreen("home")} onDone={() => { setVerified(true); openTarget(pending); }} />}
             {screen === "lounge" && <Lounge msgs={messages["lounge"] ?? loungeSeed} onMessages={(msgs) => updateMessages("lounge", msgs)} onBack={() => setScreen("home", true)} onRoom={() => { const rm = nearbyRooms[0]; if (rm) enterRoom(rm, "lounge"); }} />}
             {screen === "room" && <Room key={room.id} room={room} msgs={messages[room.id] ?? roomMsgs[room.tag] ?? roomSeed} onMessages={(msgs) => updateMessages(room.id, msgs)} onBack={() => setScreen(roomBack, true)} />}
-            {screen === "past" && <RegionalRooms joinedRooms={joinedRooms} mutedRooms={mutedRooms} onMute={(id) => setMutedRooms((current) => toggleRoomMute(current, id))} onLeave={(id) => setJoinedRooms((current) => leaveJoinedRoom(current, id))} onOpen={(rm) => enterRoom(rm, "past")} />}
+            {(screen === "past" || screen === "nearby") && <RegionalRooms view={screen === "nearby" ? "nearby" : "mine"} onNearby={() => setScreen("nearby")} joinedRooms={joinedRooms} mutedRooms={mutedRooms} onMute={(id) => setMutedRooms((current) => toggleRoomMute(current, id))} onLeave={(id) => setJoinedRooms((current) => leaveJoinedRoom(current, id))} onOpen={(rm) => enterRoom(rm, screen)} />}
             {screen === "settings" && <Settings verified={verified} onVerify={() => setScreen("verify")} />}
           </motion.div>
         </AnimatePresence>
@@ -175,13 +175,14 @@ export function RippleApp() {
 function TabBar({ tab, go }: { tab: string; go: (s: Screen) => void }) {
   const items = [
     { k: "home", label: "홈", Icon: Home },
-    { k: "past", label: "지역 방", Icon: MapPin },
+    { k: "nearby", label: "주변 방", Icon: MapPin },
+    { k: "past", label: "내가 참여한 방", Icon: Users },
     { k: "settings", label: "내 정보", Icon: User },
   ] as const;
   return (
     <nav className="absolute inset-x-0 bottom-0 z-20 flex justify-around border-t border-border bg-background pb-6 pt-3">
       {items.map(({ k, label, Icon }) => (
-        <Button variant="ghost" key={k} onClick={() => go(k)} className={`relative h-auto flex flex-col items-center gap-1 px-6 text-[11px] font-semibold transition-colors ${tab === k ? "text-primary" : "text-muted-foreground"}`}>
+        <Button variant="ghost" key={k} onClick={() => go(k)} className={`relative h-auto min-w-0 flex-1 flex flex-col items-center gap-1 px-1 text-[11px] font-semibold transition-colors ${tab === k ? "text-primary" : "text-muted-foreground"}`}>
           <Icon className="h-5 w-5" />{label}
           {tab === k && <motion.span layoutId="tabdot" className="absolute -top-2 h-1 w-1 rounded-full bg-primary" />}
         </Button>
@@ -288,7 +289,7 @@ function useChat(msgs: Msg[], onMessages: (msgs: Msg[]) => void, roomId: string)
   return { msgs: visibleMessages(msgs, blocked), text, setText, send, reply, setReply };
 }
 
-function ChatList({ msgs, onLong, onReply, bot }: { msgs: Msg[]; onLong: (m: Msg) => void; onReply: (m: Msg) => void; bot?: ReactNode }) {
+function ChatList({ msgs, onLong, onReply, bot, intro }: { msgs: Msg[]; onLong: (m: Msg) => void; onReply: (m: Msg) => void; bot?: ReactNode; intro?: ReactNode }) {
   const { avatar } = useContext(CharacterContext);
   const { blocked } = useContext(IdentityContext);
   const end = useRef<HTMLDivElement>(null);
@@ -313,6 +314,7 @@ function ChatList({ msgs, onLong, onReply, bot }: { msgs: Msg[]; onLong: (m: Msg
   };
   return (
     <div aria-label="대화 메시지" className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-3">
+      {intro}
       {msgs.map((m, i) => m.bot ? <div key="bot" className="px-4">{bot}</div> : (
         <motion.div key={m.id} data-message-id={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04 }} className={`chat-row relative flex min-h-14 items-start ${m.me ? "justify-end" : ""}`}>
           <div className={`chat-character pointer-events-none absolute top-1 h-[46px] w-[42px] ${m.me ? "-right-[17px]" : "-left-[17px]"}`}><Character avatar={m.me ? avatar : avatarForNickname(m.userId)} peek={m.me ? "left" : "right"} label={m.me ? "내 대화 캐릭터" : `${m.nick} 캐릭터`} className="h-full w-full" /></div>
@@ -339,8 +341,8 @@ function InputBar({ text, setText, send, reply, setReply }: { text: string; setT
   return (
     <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex shrink-0 items-end gap-2 border-t border-border px-4 pb-8 pt-2">
       <div className="min-w-0 flex-1 overflow-hidden rounded-[24px] bg-secondary focus-within:ring-1 focus-within:ring-primary">
-        {reply && <div className="mx-4 flex items-center gap-2 border-b border-border pb-2 pt-3"><div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-foreground">{reply.nick}에게 답장</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{reply.text}</p></div><Button variant="ghost" size="icon" aria-label="답장 취소" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground" onClick={() => setReply(null)}><X className="h-3.5 w-3.5" /></Button></div>}
-        <input ref={input} value={text} onChange={(e) => setText(e.target.value)} aria-label="메시지" placeholder="메시지 보내기" className="chat-message h-12 w-full min-w-0 border-0 bg-transparent px-5 outline-none placeholder:text-muted-foreground" />
+        {reply && <div className="mx-4 flex items-center gap-2 border-b border-border pb-2 pt-3"><div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-foreground">{reply.nick}에게 답장</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{reply.text}</p></div><Button type="button" variant="ghost" size="icon" aria-label="답장 취소" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground" onClick={() => setReply(null)}><X className="h-3.5 w-3.5" /></Button></div>}
+        <input ref={input} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (shouldSubmitChatKey(e.key, e.nativeEvent.isComposing, e.keyCode)) send(); }} aria-label="메시지" placeholder="메시지 보내기" className="chat-message h-12 w-full min-w-0 border-0 bg-transparent px-5 outline-none placeholder:text-muted-foreground" />
       </div>
       <MotionButton variant="ghost" disabled={!text.trim()} whileTap={{ scale: 0.9 }} aria-label="메시지 보내기" type="submit" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Send className="h-5 w-5" /></MotionButton>
     </form>
@@ -427,13 +429,12 @@ function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () =
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <Header title={room.tag} onBack={onBack} right={<div className="flex gap-1"><ChatSettingsButton /><Button variant="ghost" aria-label="방 공유" onClick={() => setShare(true)} className="bg-secondary h-10 w-10 rounded-full"><Share2 /></Button></div>} />
-      <div className="px-4">
+      <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} intro={<div className="px-4">
         <motion.div layoutId="cover" className="h-28 overflow-hidden rounded-2xl"><Cover tag={room.tag} c={room.c} big /></motion.div>
         <p className="mt-3 text-xs font-medium text-muted-foreground">생성 {room.time} · {room.n}명</p>
         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{room.place}에서 시작된 {room.tag} 이야기</p>
         <p className="mt-2 text-xs font-semibold text-primary">장소를 떠나도 계속 이야기할 수 있어요</p>
-      </div>
-      <ChatList msgs={chat.msgs} onReply={chat.setReply} onLong={setTarget} />
+      </div>} />
       <InputBar {...chat} />
       <ModerationSheet roomId={room.id} target={target} onReply={chat.setReply} onClose={() => setTarget(null)} />
       <AnimatePresence>
@@ -459,8 +460,7 @@ function Room({ room, onBack, msgs, onMessages }: { room: RoomInfo; onBack: () =
   );
 }
 
-function RegionalRooms({ joinedRooms, onOpen, mutedRooms, onMute, onLeave }: { joinedRooms: RoomInfo[]; onOpen: (r: RoomInfo) => void; mutedRooms: Record<string, boolean>; onMute: (id: string) => void; onLeave: (id: string) => void }) {
-  const [view, setView] = useState<"nearby" | "mine">("nearby");
+function RegionalRooms({ view, onNearby, joinedRooms, onOpen, mutedRooms, onMute, onLeave }: { view: "nearby" | "mine"; onNearby: () => void; joinedRooms: RoomInfo[]; onOpen: (r: RoomInfo) => void; mutedRooms: Record<string, boolean>; onMute: (id: string) => void; onLeave: (id: string) => void }) {
   const [place, setPlace] = useState("전체 장소");
   const [manage, setManage] = useState<RoomInfo | null>(null);
   const [leaving, setLeaving] = useState<RoomInfo | null>(null);
@@ -469,10 +469,7 @@ function RegionalRooms({ joinedRooms, onOpen, mutedRooms, onMute, onLeave }: { j
   const rooms = view === "nearby" ? nearbyRooms : joinedRooms.filter((r) => selectedPlace === "전체 장소" || r.place === selectedPlace);
   return (
     <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-28">
-      <h1 className="mt-5 text-[30px] font-extrabold">지역 방</h1>
-      <div role="tablist" aria-label="방 목록" className="mt-5 flex gap-1 rounded-xl bg-secondary p-1">
-        {([ ["nearby", "주변 방"], ["mine", "내가 참여한 방"] ] as const).map(([key, label]) => <Button key={key} variant="ghost" role="tab" aria-selected={view === key} onClick={() => setView(key)} className={`h-10 flex-1 rounded-lg font-bold ${view === key ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>{label}</Button>)}
-      </div>
+      <h1 className="mt-5 text-[30px] font-extrabold">{view === "nearby" ? "주변 방" : "내가 참여한 방"}</h1>
       {view === "nearby" ? <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><MapPin className="h-3.5 w-3.5" />지금 상명대 미래백년관 근처</p> : <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">장소는 달라도, 이야기는 계속</p><select aria-label="참여한 장소" value={selectedPlace} onChange={(e) => setPlace(e.target.value)} className="max-w-[160px] min-w-0 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-semibold"><option>전체 장소</option>{places.map((p) => <option key={p}>{p}</option>)}</select></div>}
       <div className="mt-3 space-y-2">
         {rooms.map((r) => {
@@ -483,7 +480,7 @@ function RegionalRooms({ joinedRooms, onOpen, mutedRooms, onMute, onLeave }: { j
             {!joined && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
           </RoomListItem>;
         })}
-        {rooms.length === 0 && <div className="py-14 text-center"><p className="text-base font-bold">아직 남겨둔 이야기가 없어요</p><p className="mt-2 text-sm text-muted-foreground">가까운 방에서 첫 이야기를 시작해 볼까요?</p><Button variant="secondary" className="mt-5 rounded-xl" onClick={() => setView("nearby")}>주변 방 보기</Button></div>}
+        {rooms.length === 0 && <div className="py-14 text-center"><p className="text-base font-bold">아직 남겨둔 이야기가 없어요</p><p className="mt-2 text-sm text-muted-foreground">가까운 방에서 첫 이야기를 시작해 볼까요?</p><Button variant="secondary" className="mt-5 rounded-xl" onClick={onNearby}>주변 방 보기</Button></div>}
       </div>
       <Sheet open={!!manage} onClose={() => setManage(null)}>
         <h2 className="text-lg font-bold">{manage?.tag}</h2><p className="mt-1 text-xs text-muted-foreground">{manage?.place}</p>

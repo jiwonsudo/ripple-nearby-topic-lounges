@@ -34,6 +34,8 @@ use the editor.
 - Map mock topic photos by keyword in a browser-safe module and reuse their CDN asset pointers across room covers, lists, and story previews; this keeps a topic's visual identity consistent.
 - Mount one Three.js water surface after hydration and pre-render it invisibly during permission without a frame loop; reuse that canvas on home entry, animate only on home, and dispose GPU resources on other screens to keep SSR safe and mobile rendering bounded.
 - Render the pool floor/count through the existing water shader; its single frame loop dispatches throttled pool frames and touch-wave ages to bounded top-view character motion, so riders and water react together without another frame loop.
+- Constrain home swimmer SVGs separately from editor previews and reject non-finite swimmer coordinates before shader upload so delayed layout cannot enlarge avatars or corrupt water.
+- Pointer-captured swimmer grabs pause that body's integration; release injects bounded velocity and a drop event into the existing water loop rather than adding another animation loop.
 - Integrate persistent character velocities with water drag, one impulse per wave and wall reflection; never spring characters back to seeded positions, and render local wakes in the water shader instead of stretched DOM rings.
 - Keep pool gear in the shared typed avatar; reuse tube/prop geometry across separate full-body and overhead renders, and show strokes only without a tube so editor, home and chat identities agree.
 - Split worn tubes into back/front geometry around connected bodies, use one eyewear field with transparent masks, and allocate distinct mock tube colors excluding the shared self color so accessories remain legible.

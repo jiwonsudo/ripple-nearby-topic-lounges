@@ -4,7 +4,12 @@ export type PoolTouch = { x: number; y: number; time: number };
 export type PoolFrame = { time: number; width: number; height: number; touches: PoolTouch[] };
 export type PoolPosition = { x: number; y: number; rotation: number; push: number };
 export type PoolBody = PoolPosition & { vx: number; vy: number; lastTime: number; hitWaves: number[] };
-export const poolCharacterSize = 40;
+export const poolCharacterSize = 32;
+export function throwPoolBody(body: PoolBody, x: number, y: number, vx: number, vy: number): PoolBody {
+  const speed = Math.hypot(vx, vy);
+  const scale = speed > 240 ? 240 / speed : 1;
+  return { ...body, x, y, vx: vx * scale, vy: vy * scale, hitWaves: [], push: 0 };
+}
 export function poolActivity(avatar: Pick<Avatar, "float">) { return avatar.float === "none" ? "swimming" : "floating"; }
 
 export function createPoolBody(index: number, width: number, height: number, floating: boolean): PoolBody {

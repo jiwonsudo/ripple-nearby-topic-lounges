@@ -30,13 +30,11 @@ float surface(vec2 p) {
   float w = sin(p.x*8.0 + t*0.32) * cos(p.y*9.0-t*0.26) * 0.014;
   w += sin(p.x*19.0+p.y*12.0+t*0.38)*0.004;
   w += sin(p.x*38.0-p.y*25.0+t*0.55)*0.0015;
-  w += ring(p, vec2(0.0,0.0), t+2.3, 0.012);
-  w += ring(p, vec2(-0.29,0.24), t+0.8, 0.009);
-  w += ring(p, vec2(0.3,-0.19), t+4.1, 0.01);
   for (int i = 0; i < 12; i++) {
     float d = length(p-uSwimmers[i].xy);
     float fade = exp(-d*38.0);
     w += sin(d*75.0-t*2.1+uSwimmers[i].z)*fade*0.0012;
+    w += ring(p, uSwimmers[i].xy, t+uSwimmers[i].z*0.54, 0.0036) * exp(-d*9.0);
   }
   for (int i = 0; i < 6; i++) {
     float age = t-uTouches[i].z;
@@ -65,12 +63,12 @@ void main() {
   float depth = smoothstep(-0.6,0.7,p.y + h*3.0);
   vec2 floorUv = vUv + slope*0.026 + vec2(sin(p.y*11.0+uTime*0.4), cos(p.x*10.0-uTime*0.3))*0.002;
   vec3 floorColor = texture2D(uFloor,clamp(floorUv,0.001,0.999)).rgb;
-  vec3 water = mix(floorColor,mix(uDeep,uShallow,depth*0.65+diffuse*0.2),0.24);
+  vec3 water = mix(floorColor,mix(uDeep,uShallow,depth*0.65+diffuse*0.2),0.38);
   float curvature = (surface(p+vec2(0.009,0.0))+surface(p-vec2(0.009,0.0))+surface(p+vec2(0.0,0.009))+surface(p-vec2(0.0,0.009))-4.0*h)*160.0;
   water = mix(water,uDeep,clamp(curvature*0.45,0.0,0.14));
   water = mix(water,uShallow,clamp(-curvature*0.55,0.0,0.22));
   water = mix(water,uHighlight,broad*0.12+reflection*0.035);
-  water = mix(water,uHighlight,spec*0.32+softReflection*0.14+refractedLight*0.1);
+  water = mix(water,uHighlight,spec*0.4+softReflection*0.2+refractedLight*0.13);
   float fresnel = pow(1.0-normal.z,2.0);
   water = mix(water,uHighlight,fresnel*0.28);
   gl_FragColor = vec4(water,1.0);
@@ -130,7 +128,7 @@ export default function WaterSurface({ dark, active = true, count = 12, onReady 
         ctx.font = '800 180px "Pretendard Variable", system-ui, sans-serif';
         ctx.fillText(String(count), width / 2, center - 15);
         ctx.font = '600 24px "Pretendard Variable", system-ui, sans-serif';
-        ctx.fillText("명 · 지금 이곳의 ripplers", width / 2, center + 105);
+        ctx.fillText("지금 이곳의 ripplers", width / 2, center + 105);
         floorTexture.needsUpdate = true;
       };
       const uniforms = {
@@ -170,6 +168,7 @@ export default function WaterSurface({ dark, active = true, count = 12, onReady 
             const row = swimmers?.[index];
             if (!row) { value.set(-10,-10,index); return; }
             const x = Number(row.dataset['poolX']); const y = Number(row.dataset['poolY']);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) { value.set(-10,-10,index); return; }
             value.set((x / element.clientWidth - 0.5) * uniforms.uAspect.value, 0.5 - y / element.clientHeight,index);
           });
         }
@@ -184,6 +183,10 @@ export default function WaterSurface({ dark, active = true, count = 12, onReady 
         touches = [...touches.slice(-5), { x: event.clientX - box.left, y: event.clientY - box.top, time: uniforms.uTime.value }];
         touchIndex = (touchIndex + 1) % uniforms.uTouches.value.length;
       };
+      const drop = (event: Event) => {
+        const detail = (event as CustomEvent<{ x: number; y: number }>).detail;
+        touch({ clientX: detail.x, clientY: detail.y } as PointerEvent);
+      };
       resume.current = () => {
         cancelAnimationFrame(frame);
         if (activeRef.current) {
@@ -192,10 +195,10 @@ export default function WaterSurface({ dark, active = true, count = 12, onReady 
           paintFloor(); render();
         }
       };
-      element.addEventListener("pointerdown",touch); render();
+      element.addEventListener("pointerdown",touch); shell?.addEventListener("pool-drop",drop); render();
       element.dataset['ready'] = "true";
       readyRef.current?.();
-      dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); geometry.dispose(); material.dispose(); floorTexture.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
+      dispose = () => { resume.current = null; cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener("pointerdown",touch); shell?.removeEventListener("pool-drop",drop); geometry.dispose(); material.dispose(); floorTexture.dispose(); renderer.dispose(); renderer.domElement.remove(); delete element.dataset['ready']; };
     });
     return () => { cancelled = true; dispose?.(); };
   }, [dark, count]);

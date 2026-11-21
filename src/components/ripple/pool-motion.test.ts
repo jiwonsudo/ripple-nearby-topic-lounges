@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createPoolBody, stepPoolBody, poolActivity, poolCharacterSize, poolPosition } from "./pool-motion";
+import { createPoolBody, stepPoolBody, throwPoolBody, poolActivity, poolCharacterSize, poolPosition } from "./pool-motion";
 
 describe("pool character rules", () => {
+  it("throws from the release point with bounded momentum", () => {
+    const thrown = throwPoolBody(createPoolBody(0,390,400,true),120,180,600,800);
+    expect(thrown.x).toBe(120); expect(thrown.y).toBe(180);
+    expect(Math.hypot(thrown.vx,thrown.vy)).toBe(240);
+    const moved = stepPoolBody({...thrown,lastTime:0},0.08,390,400,true);
+    expect(moved.x).toBeGreaterThan(120); expect(moved.y).toBeGreaterThan(180);
+  });
   it("keeps wave displacement instead of pulling the rider back", () => {
     const initial = { ...createPoolBody(4, 390, 400, true), x: 190, y: 200, vx: 0, vy: 0, lastTime: 0 };
     let body = stepPoolBody(initial, 0.05, 390, 400, true, [{ x: 170, y: 200, time: 0 }]);
@@ -24,7 +31,7 @@ describe("pool character rules", () => {
   it("floats without swimming for ring, flamingo and dolphin tubes", () => {
     for (const float of ["ring", "flamingo", "dolphin"] as const) expect(poolActivity({ float })).toBe("floating");
   });
-  it("keeps the corrected character small but legible at 40px", () => { expect(poolCharacterSize).toBe(40); });
+  it("keeps home characters compact at 32px", () => { expect(poolCharacterSize).toBe(32); });
   it("keeps all 12 characters inside the pool even while moving and reacting", () => {
     for (const [width, height] of [[360, 210], [390, 400]] as const) {
       for (let index = 0; index < 12; index++) for (let time = 0; time <= 60; time += 0.5) {
