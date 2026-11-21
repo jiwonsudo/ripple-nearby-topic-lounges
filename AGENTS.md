@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Keep this clickable prototype frontend-only; appearance preferences are shared React state, so every screen updates without a backend.
+- Define theme, story-cover, motion, and chat typography roles in global CSS; chat size options live in the browser-safe appearance module for consistent settings and previews.
+- Map mock topic photos by keyword in a browser-safe module and reuse their CDN asset pointers across room covers, lists, and story previews; this keeps a topic's visual identity consistent.
+- Load the Three.js water renderer only after mounting; animate a token-colored full-bleed shader and dispose GPU resources on navigation to keep SSR safe and mobile rendering bounded.
+- Centralize screen navigation behind an origin-aware wave overlay; hold the destination change until the expanding circle covers the phone, and bypass motion for reduced-motion users.

@@ -72,7 +72,11 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-primary-soft: var(--primary-soft);
   --color-desk: var(--desk);
-  --font-sans: "Pretendard Variable", Pretendard, "Inter", system-ui, sans-serif;
+  --color-chat-own: var(--chat-own);
+  --color-chat-own-foreground: var(--chat-own-foreground);
+  --color-chat-other: var(--chat-other);
+  --color-story-foreground: var(--story-foreground);
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
 }
 
 :root {
@@ -101,10 +105,59 @@
   --chart-1: oklch(0.6 0.2 255); --chart-2: oklch(0.7 0.14 230); --chart-3: oklch(0.5 0.18 265); --chart-4: oklch(0.8 0.1 220); --chart-5: oklch(0.4 0.15 265);
   --sidebar: oklch(1 0 0); --sidebar-foreground: oklch(0.22 0.02 260); --sidebar-primary: oklch(0.6 0.2 255); --sidebar-primary-foreground: oklch(1 0 0); --sidebar-accent: oklch(0.955 0.006 250); --sidebar-accent-foreground: oklch(0.22 0.02 260); --sidebar-border: oklch(0.92 0.006 250); --sidebar-ring: oklch(0.6 0.2 255);
   --desk: oklch(0.955 0.006 250);
-  --wave-1: linear-gradient(160deg, oklch(0.72 0.15 235), oklch(0.55 0.21 260));
-  --wave-2: linear-gradient(160deg, oklch(0.62 0.2 255), oklch(0.42 0.18 265));
-  --wave-3: linear-gradient(160deg, oklch(0.8 0.11 220), oklch(0.6 0.2 255));
+  --chat-own: oklch(0.6 0.2 255);
+  --chat-own-foreground: oklch(1 0 0);
+  --chat-other: oklch(0.955 0.006 250);
+  --story-foreground: oklch(1 0 0);
+  --wave-1: linear-gradient(145deg, oklch(0.62 0.25 340), oklch(0.46 0.23 285));
+  --wave-2: linear-gradient(145deg, oklch(0.66 0.18 235), oklch(0.47 0.25 267));
+  --wave-3: linear-gradient(145deg, oklch(0.68 0.17 175), oklch(0.4 0.14 210));
+  --wave-4: linear-gradient(145deg, oklch(0.73 0.19 40), oklch(0.52 0.23 20));
+  --wave-5: linear-gradient(145deg, oklch(0.67 0.23 310), oklch(0.43 0.21 280));
   --shadow-soft: 0 8px 24px -12px oklch(0.6 0.2 255 / 0.45);
+  --shadow-avatar: 0 4px 12px oklch(0.25 0.025 255 / 0.1);
+  --shadow-core: 0 0 0 8px oklch(0.6 0.2 255 / 0.1), 0 8px 24px oklch(0.6 0.2 255 / 0.25);
+  --wave-ink: oklch(1 0 0 / 0.22);
+  --story-photo-shade: linear-gradient(180deg, oklch(0.12 0.01 260 / 0.05) 25%, oklch(0.12 0.01 260 / 0.78) 100%);
+  --radar-line: oklch(0.68 0.13 250 / 0.2);
+  --radar-fill: oklch(0.68 0.13 250 / 0.035);
+  --chat-font-size: 14px;
+  --water-deep: oklch(0.77 0.08 235);
+  --water-shallow: oklch(0.97 0.013 230);
+  --water-highlight: oklch(1 0 0);
+  --water-count-shadow: 0 2px 18px oklch(1 0 0 / 0.7);
+}
+
+.dark {
+  --background: oklch(0.16 0.006 265);
+  --foreground: oklch(0.96 0.005 265);
+  --card: oklch(0.21 0.009 265);
+  --card-foreground: oklch(0.96 0.005 265);
+  --popover: oklch(0.2 0.009 265);
+  --popover-foreground: oklch(0.96 0.005 265);
+  --primary: oklch(0.73 0.16 245);
+  --primary-foreground: oklch(0.16 0.02 255);
+  --primary-soft: oklch(0.27 0.055 250);
+  --secondary: oklch(0.25 0.008 265);
+  --secondary-foreground: oklch(0.96 0.005 265);
+  --muted: oklch(0.3 0.009 265);
+  --muted-foreground: oklch(0.7 0.01 265);
+  --accent: oklch(0.28 0.04 250);
+  --accent-foreground: oklch(0.96 0.005 265);
+  --border: oklch(0.31 0.01 265);
+  --input: oklch(0.31 0.01 265);
+  --ring: oklch(0.73 0.16 245);
+  --desk: oklch(0.12 0.005 265);
+  --chat-own: oklch(0.88 0.21 128);
+  --chat-own-foreground: oklch(0.2 0.025 125);
+  --chat-other: oklch(0.25 0.008 265);
+  --radar-line: oklch(0.73 0.16 245 / 0.25);
+  --radar-fill: oklch(0.73 0.16 245 / 0.045);
+  --shadow-core: 0 0 0 8px oklch(0.73 0.16 245 / 0.12), 0 8px 24px oklch(0.1 0.01 265 / 0.25);
+  --water-deep: oklch(0.19 0.025 235);
+  --water-shallow: oklch(0.4 0.07 230);
+  --water-highlight: oklch(0.76 0.07 220);
+  --water-count-shadow: 0 2px 18px oklch(0.1 0.02 230 / 0.5);
 }
 
 @layer base {
@@ -123,6 +176,43 @@
 .cover-1 { background: var(--wave-1); }
 .cover-2 { background: var(--wave-2); }
 .cover-3 { background: var(--wave-3); }
-.cover-4 { background: var(--wave-1); }
-.cover-5 { background: var(--wave-2); }
-.ripple-pattern { background-image: repeating-radial-gradient(circle at 80% 20%, oklch(1 0 0 / 0.22) 0 1.5px, transparent 1.5px 20px); }
+.cover-4 { background: var(--wave-4); }
+.cover-5 { background: var(--wave-5); }
+.ripple-pattern { background-image: repeating-radial-gradient(ellipse at 100% 0%, var(--wave-ink) 0 2px, transparent 2px 30px); }
+.ripple-app { letter-spacing: 0; }
+.phone-shell { isolation: isolate; }
+.ripple-app button { cursor: pointer; }
+.ripple-app button:active { transition-duration: 80ms; }
+.radar-area { min-height: 300px; flex-shrink: 0; }
+.radar-stage { width: 320px; height: 320px; flex-shrink: 0; }
+.radar-ring, .radar-wave { position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); border: 1px solid var(--radar-line); }
+.radar-ring-outer { width: 94%; height: 94%; background: var(--radar-fill); }
+.radar-ring-middle { width: 68%; height: 68%; background: var(--radar-fill); }
+.radar-ring-inner { width: 42%; height: 42%; background: var(--radar-fill); }
+.radar-wave { width: 28%; height: 28%; border-width: 2px; animation: radar-pulse 4s cubic-bezier(0.2, 0.6, 0.4, 1) infinite; }
+.radar-wave-delayed { animation-delay: -2s; }
+.radar-center { box-shadow: var(--shadow-core); }
+.story-photo-shade { background: var(--story-photo-shade); }
+.water-surface { background: var(--water-shallow); overflow: hidden; }
+.water-surface canvas { width: 100%; height: 100%; display: block; }
+.water-home > header, .water-home > div:not(.water-surface), .water-home > p { position: relative; }
+.water-home > header, .water-home > div:not(.water-surface):not(.water-center) { pointer-events: none; }
+.water-home button, .water-home input { pointer-events: auto; }
+.water-center { pointer-events: none; }
+.water-count { text-shadow: var(--water-count-shadow); }
+.live-dot { animation: live-pulse 2.4s ease-in-out infinite; }
+.chat-message { font-size: var(--chat-font-size); overflow-wrap: anywhere; }
+[data-chat-size="small"] { --chat-font-size: 13px; }
+[data-chat-size="medium"] { --chat-font-size: 14px; }
+[data-chat-size="large"] { --chat-font-size: 16px; }
+[data-chat-size="extra"] { --chat-font-size: 18px; }
+.font-slider { cursor: pointer; height: 20px; }
+.story-title { overflow-wrap: anywhere; }
+.empty-illustration { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: var(--primary-soft); font-size: 32px; }
+@keyframes radar-pulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0; } 15% { opacity: 0.7; } 100% { transform: translate(-50%, -50%) scale(3.4); opacity: 0; } }
+@keyframes live-pulse { 50% { opacity: 0.4; } }
+@media (max-height: 760px) { .radar-stage { width: 290px; height: 290px; } .radar-area { min-height: 310px; } }
+@media (max-height: 700px) { .radar-stage { width: 240px; height: 240px; } .radar-area { min-height: 250px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

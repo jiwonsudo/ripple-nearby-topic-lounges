@@ -1,0 +1,5 @@
+import logo from "@/assets/brand/ripple-logo-a.png.asset.json";
+
+export function RippleLogo({ large = false }: { large?: boolean }) {
+  return <span className={`inline-flex items-center gap-2 ${large ? "flex-col gap-3" : ""}`}><img src={logo.url} alt="리플 물방울 로고" className={large ? "h-20 w-20 object-contain" : "h-10 w-10 object-contain"} /><span className={large ? "text-[32px] font-black" : "text-[28px] font-black"}>Ripple</span></span>;
+}
